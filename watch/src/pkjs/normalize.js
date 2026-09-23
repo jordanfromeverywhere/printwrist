@@ -63,9 +63,53 @@ function ams(p) {
   return {slot: 'AMS' + (unit + 1) + '-' + (slot + 1), type: '', color: null};
 }
 
+function fanPct(v) {
+  var n = num(v);
+  if (n === null) return null;
+  return Math.max(0, Math.min(100, Math.round(n * 100 / 15)));
+}
+
+function speed(v) { var n = num(v); return n !== null && n >= 1 && n <= 4 ? n : null; }
+
+function light(p) {
+  var l = p.lights_report, i;
+  if (!Array.isArray(l)) return null;
+  for (i = 0; i < l.length; i++) {
+    if (l[i] && l[i].node === 'chamber_light') return l[i].mode === 'off' ? 'off' : 'on';
+  }
+  return null;
+}
+
+function spool(t) {
+  if (!t || typeof t !== 'object' || !t.tray_type) return null;
+  return {type: t.tray_type, color: color(t.tray_color)};
+}
+
+function trays(p) {
+  var out = [null, null, null, null], a = p.ams || {}, units = a.ams || [], i, j, u;
+  for (i = 0; i < units.length; i++) {
+    u = units[i];
+    if (num(u.id) !== 0) continue;
+    for (j = 0; j < (u.tray || []).length; j++) {
+      var id = num(u.tray[j].id);
+      if (id !== null && id >= 0 && id < 4) out[id] = spool(u.tray[j]);
+    }
+  }
+  return out;
+}
+
+function trayActive(p) {
+  var now = String(((p.ams || {}).tray_now === undefined) ? '255' : p.ams.tray_now);
+  if (now === '254') return 4;
+  var n = num(now);
+  return n !== null && n >= 0 && n < 4 ? n : null;
+}
+
 function empty() {
   return {stage: 'offline', progress: null, remaining_min: null, nozzle: null, bed: null, chamber: null,
-          layer: null, total_layers: null, job: null, error_code: null, ams: null};
+          layer: null, total_layers: null, job: null, error_code: null, ams: null,
+          nozzle_target: null, bed_target: null, fan_part: null, fan_aux: null, fan_chamber: null,
+          speed: null, light: null, trays: [null, null, null, null], tray_active: null, ext: null};
 }
 
 function normalize(report) {
@@ -82,7 +126,17 @@ function normalize(report) {
     total_layers: num(p.total_layer_num),
     job: p.subtask_name || null,
     error_code: errorCode(p.print_error),
-    ams: ams(p)
+    ams: ams(p),
+    nozzle_target: num(p.nozzle_target_temper),
+    bed_target: num(p.bed_target_temper),
+    fan_part: fanPct(p.cooling_fan_speed),
+    fan_aux: fanPct(p.big_fan1_speed),
+    fan_chamber: fanPct(p.big_fan2_speed),
+    speed: speed(p.spd_lvl),
+    light: light(p),
+    trays: trays(p),
+    tray_active: trayActive(p),
+    ext: spool(external(p))
   };
 }
 
