@@ -18,23 +18,27 @@ FIX = pathlib.Path(__file__).resolve().parents[1] / "relay" / "tests" / "fixture
 HEADERS = {"User-Agent": "bambu_network_agent/01.09.05.01", "Content-Type": "application/json"}
 SECRET_KEYS = {"dev_access_code", "access_code", "accessToken", "refreshToken", "token", "ip",
                "ipaddr", "ip_addr", "mac", "ttcode", "authkey", "passwd", "password", "email", "wifi_signal"}
+ALL_SERIALS = []
 
 
 def show(label, resp):
     print(f"--- {label}: HTTP {resp.status_code}")
     try:
-        print(json.dumps(sanitize(resp.json(), None), indent=2)[:2000])
+        print(json.dumps(sanitize(resp.json(), []), indent=2)[:2000])
     except ValueError:
         print(resp.text[:500])
 
 
-def sanitize(obj, serial):
+def sanitize(obj, serials):
     if isinstance(obj, dict):
-        return {k: ("REDACTED" if k in SECRET_KEYS else sanitize(v, serial)) for k, v in obj.items()}
+        return {k: ("REDACTED" if k in SECRET_KEYS else sanitize(v, serials)) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [sanitize(v, serial) for v in obj]
-    if serial and isinstance(obj, str) and serial in obj:
-        return obj.replace(serial, "SERIAL0000")
+        return [sanitize(v, serials) for v in obj]
+    if isinstance(obj, str):
+        for i, serial in enumerate(serials):
+            if serial in obj:
+                obj = obj.replace(serial, f"SERIAL{i:04d}")
+        return obj
     return obj
 
 
@@ -81,11 +85,16 @@ def auth_headers(tok):
 
 
 def pick_serial(tok, wanted):
+    global ALL_SERIALS
     r = requests.get(f"{API}/v1/iot-service/api/user/bind", headers=auth_headers(tok), timeout=20)
     show("devices", r)
     devices = r.json().get("devices", [])
     serial = wanted or (devices[0]["dev_id"] if devices else None)
-    save("devices.json", sanitize(r.json(), serial))
+    all_serials = [d["dev_id"] for d in devices]
+    if serial in all_serials:
+        all_serials.remove(serial)
+    ALL_SERIALS = [serial] + all_serials if serial else all_serials
+    save("devices.json", sanitize(r.json(), ALL_SERIALS))
     return serial
 
 
@@ -127,8 +136,8 @@ def cmd_probe(args):
         if "print" in m:
             for k, v in m["print"].items():
                 merged.setdefault("print", {})[k] = v
-    save("report_p2s_messages.json", sanitize(msgs, serial))
-    save("report_p2s.json", sanitize(merged, serial))
+    save("report_p2s_messages.json", sanitize(msgs, ALL_SERIALS))
+    save("report_p2s.json", sanitize(merged, ALL_SERIALS))
     p = merged.get("print", {})
     print("gcode_state:", p.get("gcode_state"), "| mc_percent:", p.get("mc_percent"))
     print("ipcam (v1.1 camera transport):", json.dumps(p.get("ipcam"), indent=2))
@@ -149,8 +158,8 @@ def cmd_light(args):
                            "loop_times": 0, "interval_time": 0}}
     msgs = mqtt_session(tok, serial, [led("on", 101), led("off", 102)], 12)
     replies = [m for m in msgs if "system" in m or "err_code" in json.dumps(m)]
-    save("ledctrl_replies.json", sanitize(replies, serial))
-    print(json.dumps(sanitize(replies, serial), indent=2))
+    save("ledctrl_replies.json", sanitize(replies, ALL_SERIALS))
+    print(json.dumps(sanitize(replies, ALL_SERIALS), indent=2))
     print("Did the chamber light visibly turn on then off? Record yes/no in CONTRACT.md.")
 
 
