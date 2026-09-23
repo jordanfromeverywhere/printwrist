@@ -1,0 +1,30 @@
+[
+  {
+    "system": {
+      "command": "ledctrl",
+      "interval_time": 0,
+      "led_mode": "on",
+      "led_node": "chamber_light",
+      "led_off_time": 500,
+      "led_on_time": 500,
+      "loop_times": 0,
+      "reason": "",
+      "result": "success",
+      "sequence_id": "101"
+    }
+  },
+  {
+    "system": {
+      "command": "ledctrl",
+      "interval_time": 0,
+      "led_mode": "off",
+      "led_node": "chamber_light",
+      "led_off_time": 500,
+      "led_on_time": 500,
+      "loop_times": 0,
+      "reason": "",
+      "result": "success",
+      "sequence_id": "102"
+    }
+  }
+]

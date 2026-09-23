@@ -100,8 +100,9 @@ def pick_serial(tok, wanted):
 
 def mqtt_username(tok):
     r = requests.get(f"{API}/v1/user-service/my/profile", headers=auth_headers(tok), timeout=20)
-    show("profile", r)
-    return f"u_{r.json()['uid']}"
+    body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+    print(f"--- profile: HTTP {r.status_code}, keys: {sorted(body.keys())}")
+    return f"u_{body['uid']}"
 
 
 def mqtt_session(tok, serial, request_payload, seconds):

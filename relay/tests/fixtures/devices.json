@@ -1,0 +1,20 @@
+{
+  "message": "success",
+  "code": null,
+  "error": null,
+  "devices": [
+    {
+      "dev_id": "SERIAL0000",
+      "name": "P2S",
+      "online": true,
+      "print_status": "SUCCESS",
+      "print_job": 1276330877,
+      "dev_model_name": "N7-V2",
+      "dev_product_name": "P2S",
+      "dev_access_code": "REDACTED",
+      "nozzle_diameter": 0.4,
+      "dev_structure": "CoreXY",
+      "total_print_time": 4450492
+    }
+  ]
+}
