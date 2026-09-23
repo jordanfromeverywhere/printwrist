@@ -43,6 +43,12 @@
   function codeResult(code) { return {action: 'code', code: String(code).replace(/\D/g, '')}; }
   function saveResult(serial, settings) { return {action: 'save', serial: serial, settings: mergeSettings(settings)}; }
 
+  var RETURN_TO_ALLOWED = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//;
+
+  function isAllowedReturnTo(value) {
+    return /^pebblejs:\/\//.test(value) || RETURN_TO_ALLOWED.test(value);
+  }
+
   function returnToFromSearch(search) {
     try {
       var query = String(search || '').replace(/^\?/, '');
@@ -51,7 +57,8 @@
       for (var i = 0; i < pairs.length; i++) {
         var pair = pairs[i].split('=');
         if (pair[0] === 'return_to' && pair[1]) {
-          return decodeURIComponent(pair[1]);
+          var value = decodeURIComponent(pair[1]);
+          return isAllowedReturnTo(value) ? value : '';
         }
       }
       return '';

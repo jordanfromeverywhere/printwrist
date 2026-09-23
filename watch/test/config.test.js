@@ -44,6 +44,30 @@ test('isValidTime', function () {
   assert.ok(!C.isValidTime('24:00'));
 });
 
+test('returnToFromSearch rejects an https redirect to another origin', function () {
+  assert.strictEqual(C.returnToFromSearch('?return_to=https%3A%2F%2Fevil.example%2F'), '');
+});
+
+test('returnToFromSearch keeps a localhost target with a port', function () {
+  assert.strictEqual(C.returnToFromSearch('?return_to=http%3A%2F%2Flocalhost%3A5000%2Fclose%3F'), 'http://localhost:5000/close?');
+});
+
+test('returnToFromSearch keeps a 127.0.0.1 target', function () {
+  assert.strictEqual(C.returnToFromSearch('?return_to=http%3A%2F%2F127.0.0.1%3A9%2Fclose%3F'), 'http://127.0.0.1:9/close?');
+});
+
+test('returnToFromSearch keeps a pebblejs target', function () {
+  assert.strictEqual(C.returnToFromSearch('?return_to=pebblejs%3A%2F%2Fclose%23'), 'pebblejs://close#');
+});
+
+test('returnToFromSearch rejects a lookalike host', function () {
+  assert.strictEqual(C.returnToFromSearch('?return_to=http%3A%2F%2Flocalhost.evil.example%2F'), '');
+});
+
+test('returnToFromSearch rejects a javascript: target', function () {
+  assert.strictEqual(C.returnToFromSearch('?return_to=javascript%3Aalert(1)'), '');
+});
+
 test('settings no longer carry a relay URL', function () {
   var s = C.parseState('#' + encodeURIComponent(JSON.stringify({settings: {relayUrl: 'https://x.example'}})));
   assert.strictEqual(Object.prototype.hasOwnProperty.call(s.settings, 'relayUrl'), false);
