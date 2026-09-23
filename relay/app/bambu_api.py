@@ -22,7 +22,7 @@ def get_username(token: str, session=requests, ttl: float = 600.0, now=time.mono
                         headers={**HEADERS, "Authorization": f"Bearer {token}"}, timeout=10)
     except requests.RequestException as e:
         raise UpstreamError(f"profile request failed: {e}") from e
-    if r.status_code in (401, 403):
+    if r.status_code == 401:
         raise AuthError("token rejected")
     if r.status_code != 200:
         raise UpstreamError(f"profile HTTP {r.status_code}")

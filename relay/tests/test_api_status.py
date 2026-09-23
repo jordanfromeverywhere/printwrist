@@ -80,3 +80,13 @@ def test_broker_unreachable_502():
     c, made = client(fail_upstream=True)
     assert c.post("/status", json={"serial": "ABC12345"}, headers=AUTH).status_code == 502
     assert not made[0][2].closed
+
+
+def test_status_503_when_sessions_exhausted():
+    app = create_app(transport_factory=lambda user, token: FakeTransport([{"print": {"gcode_state": "RUNNING"}}]),
+                     username_resolver=lambda tok: "u_123", max_sessions=1)
+    app.state.session_semaphore.acquire()  # hold the only session slot
+    c = TestClient(app)
+    r = c.post("/status", json={"serial": "ABC12345"}, headers=AUTH)
+    assert r.status_code == 503
+    assert r.json()["detail"] == "busy"

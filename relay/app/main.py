@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import threading
 import time
 from pathlib import Path
 
@@ -38,7 +39,8 @@ def bearer(authorization: str | None) -> str:
     return authorization[7:]
 
 
-def create_app(transport_factory=None, username_resolver=None, now=time.monotonic, control_sender=None) -> FastAPI:
+def create_app(transport_factory=None, username_resolver=None, now=time.monotonic, control_sender=None,
+               max_sessions: int = 32) -> FastAPI:
     transport_factory = transport_factory or (lambda user, token: PahoTransport(user, token))
     username_resolver = username_resolver or get_username
     status_limit = RateLimiter(min_interval=2.0)
@@ -47,6 +49,7 @@ def create_app(transport_factory=None, username_resolver=None, now=time.monotoni
     app.state.transport_factory = transport_factory
     app.state.username_resolver = username_resolver
     app.state.now = now
+    app.state.session_semaphore = threading.BoundedSemaphore(max_sessions)
     control_sender = control_sender or unsigned_sender
 
     @app.get("/healthz")
@@ -59,24 +62,32 @@ def create_app(transport_factory=None, username_resolver=None, now=time.monotoni
         if not status_limit.allow(token_key(token), now()):
             raise HTTPException(429, "slow down")
         transport = open_transport(app, token)
+        if not app.state.session_semaphore.acquire(timeout=5):
+            raise HTTPException(503, "busy")
         try:
             return normalize(fetch_report(transport, req.serial))
         except AuthError:
             raise HTTPException(401, "bambu rejected token")
         except UpstreamError:
             raise HTTPException(502, "bambu unavailable")
+        finally:
+            app.state.session_semaphore.release()
 
     @app.post("/control")
     def control(req: ControlRequest, authorization: str | None = Header(default=None)):
         token = bearer(authorization)
         if not control_limit.allow(token_key(token), now()):
             raise HTTPException(429, "slow down")
+        if not app.state.session_semaphore.acquire(timeout=5):
+            raise HTTPException(503, "busy")
         try:
             result = control_sender(app, token, req.serial, req.action)
         except AuthError:
             raise HTTPException(401, "bambu rejected token")
         except UpstreamError:
             raise HTTPException(502, "bambu unavailable")
+        finally:
+            app.state.session_semaphore.release()
         if result == "rejected":
             raise HTTPException(409, "rejected")
         return {"result": result}
