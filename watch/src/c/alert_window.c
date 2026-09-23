@@ -4,6 +4,7 @@
 #include "format.h"
 
 static Window *s_win;
+static StatusBarLayer *s_bar;
 static Layer *s_canvas;
 static AlertKind s_kind;
 
@@ -83,7 +84,12 @@ static void clicks(void *ctx) {
 
 static void load(Window *w) {
   Layer *root = window_get_root_layer(w);
-  s_canvas = layer_create(layer_get_bounds(root));
+  GRect b = layer_get_bounds(root);
+  s_bar = status_bar_layer_create();
+  status_bar_layer_set_colors(s_bar, GColorBlack, GColorLightGray);
+  status_bar_layer_set_separator_mode(s_bar, StatusBarLayerSeparatorModeNone);
+  layer_add_child(root, status_bar_layer_get_layer(s_bar));
+  s_canvas = layer_create(GRect(0, STATUS_BAR_LAYER_HEIGHT, b.size.w, b.size.h - STATUS_BAR_LAYER_HEIGHT));
   layer_set_update_proc(s_canvas, draw);
   layer_add_child(root, s_canvas);
 }
@@ -91,6 +97,8 @@ static void load(Window *w) {
 static void unload(Window *w) {
   layer_destroy(s_canvas);
   s_canvas = NULL;
+  status_bar_layer_destroy(s_bar);
+  s_bar = NULL;
   window_destroy(s_win);
   s_win = NULL;
 }
