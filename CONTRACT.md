@@ -2,7 +2,7 @@
 
 ## Login
 - Response keys on success: first response (password step) is HTTP 200 with accessToken, refreshToken, expiresIn (0), refreshExpiresIn, tfaKey, accessMethod, loginType "verifyCode", firstAppLogin. After POST sendemail/code (HTTP 200) and login with {account, code}: HTTP 200 with accessToken, refreshToken present, expiresIn 7776000 (90 days), refreshExpiresIn 7776000, loginType "".
-- Login type for Jordan's account: verifyCode (email code, not password-only, not authenticator tfa)
+- Login type for the test account: verifyCode (email code, not password-only, not authenticator tfa)
 - Headers needed (did the default User-Agent work?): yes, default User-Agent "bambu_network_agent/01.09.05.01" worked for every call, no extra headers needed
 - CORS allow-origin on login: None (no access-control-allow-origin header returned). This confirms the browser cannot call Bambu directly, so login must stay a JS-side (relay-less) flow, not something the settings page calls cross-origin.
 
@@ -17,7 +17,7 @@
 - Serial field: `dev_id` (top-level of each entry in `devices[]` from GET /v1/iot-service/api/user/bind)
 - Name field: `name` (also `dev_product_name` for the model, e.g. "P2S"; `dev_model_name` is the internal model code, e.g. "N7-V2")
 - Online field: `online` (boolean)
-- See `relay/tests/fixtures/devices.json` for the full sanitized shape (print_status, print_job, dev_access_code redacted, nozzle_diameter, dev_structure, total_print_time also present).
+- See `watch/test/fixtures/devices.json` for the full sanitized shape (print_status, print_job, dev_access_code redacted, nozzle_diameter, dev_structure, total_print_time also present).
 
 ## Report fields (P2S)
 - gcode_state values seen: FINISH (mc_percent 100). Only one state observed this run; other states (RUNNING, PAUSE, FAILED, IDLE, PREPARE, SLICING) not exercised, per the plan's expected mapping.
@@ -38,8 +38,8 @@
 - CONTROL_MODE: unsigned
 - Deviations from the plan's expected contract that later tasks must apply:
   - Refresh endpoint (`/v1/user-service/user/refreshtoken`) rejects our calls with 401 regardless of auth header. v1 must not depend on refresh; rely on the 90-day access token plus a manual reconnect/relogin flow on expiry.
-  - There is no `vt_tray` field on the P2S report. The external-spool slot 254 lives at `print.vir_slot` instead. Any code path that reads `vt_tray` for slot 254 (for example the AMS-tray lookup in `relay/app/normalize.py`) should also check `vir_slot`.
-  - There is no `chamber_temper` field on the P2S report. Chamber temperature (when present) is at `print.device.ctc.info.temp`, duplicated at `print.info.temp`. Code should read the nested `device.ctc.info.temp` path as the chamber-temp source (already the fallback path used in `relay/app/normalize.py`).
+  - There is no `vt_tray` field on the P2S report. The external-spool slot 254 lives at `print.vir_slot` instead. Any code path that reads `vt_tray` for slot 254 (for example the AMS-tray lookup in `watch/src/pkjs/normalize.js`) should also check `vir_slot`.
+  - There is no `chamber_temper` field on the P2S report. Chamber temperature (when present) is at `print.device.ctc.info.temp`, duplicated at `print.info.temp`. Code should read the nested `device.ctc.info.temp` path as the chamber-temp source (already the fallback path used in `watch/src/pkjs/normalize.js`).
   - `pushall` can return a mix of empty `{}` payloads and partial delta payloads alongside the one full merged report; consumers must not assume every message on the report topic carries a `print` key.
 
 Caveat: ledctrl is weaker proof of unsigned control than pause/stop would be, since a light command could in principle be accepted and silently ignored by the printer. The live pause performed in the final control-path test is the stronger confirmation that unsigned commands actually reach and affect the printer; until that test runs, treat this verdict as supported mainly by the owner's visual confirmation that the chamber light actually turned on then off.

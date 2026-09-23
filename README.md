@@ -8,7 +8,7 @@ The compiled watchapp (.pbw) is attached to GitHub Releases. Or build it yoursel
 
 1. Clone this repo
 2. `cd watch && pebble build`
-3. Install from `watch/build/PrintWrist.pbw`
+3. Install from `watch/build/watch.pbw`
 
 ## Settings
 
