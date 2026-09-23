@@ -1,6 +1,6 @@
 var test = require('node:test');
 var assert = require('node:assert');
-var C = require('../../relay/app/static/config/config.js');
+var C = require('../../docs/config/config.js');
 
 test('parseState decodes hash and fills defaults', function () {
   var s = C.parseState('#' + encodeURIComponent(JSON.stringify({signedIn: true, email: 'a@b.c'})));
@@ -44,9 +44,8 @@ test('isValidTime', function () {
   assert.ok(!C.isValidTime('24:00'));
 });
 
-test('mergeSettings rejects non-https relayUrl', function () {
-  assert.strictEqual(C.mergeSettings({relayUrl: 'http://x'}).relayUrl, '');
-  assert.strictEqual(C.mergeSettings({relayUrl: 'https://mine.example/'}).relayUrl, 'https://mine.example/');
-  assert.strictEqual(C.mergeSettings({relayUrl: 'junk'}).relayUrl, '');
-  assert.strictEqual(C.mergeSettings({relayUrl: ''}).relayUrl, '');
+test('settings no longer carry a relay URL', function () {
+  var s = C.parseState('#' + encodeURIComponent(JSON.stringify({settings: {relayUrl: 'https://x.example'}})));
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(s.settings, 'relayUrl'), false);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(C.DEFAULT_SETTINGS, 'relayUrl'), false);
 });

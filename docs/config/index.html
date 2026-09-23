@@ -130,12 +130,6 @@
 
   <div class="gh">Advanced</div>
   <div class="grp">
-    <div class="it">
-      <div class="label-col">
-        <label for="relay-url" style="margin:0 0 6px">Relay server</label>
-        <input id="relay-url" type="text" placeholder="Default">
-      </div>
-    </div>
     <button type="button" class="it button-row danger" id="signout-btn">Sign out</button>
   </div>
 </section>
@@ -316,12 +310,6 @@
     });
     endEl.addEventListener('change', function () {
       if (PWConfig.isValidTime(endEl.value)) local.settings.quiet.end = endEl.value;
-    });
-
-    var relayEl = document.getElementById('relay-url');
-    relayEl.value = local.settings.relayUrl;
-    relayEl.addEventListener('change', function () {
-      local.settings.relayUrl = relayEl.value;
     });
 
     document.getElementById('signout-btn').addEventListener('click', function () {

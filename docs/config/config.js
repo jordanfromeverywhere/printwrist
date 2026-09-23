@@ -2,8 +2,7 @@
   var DEFAULT_SETTINGS = {
     layout: 'arc', controlEnabled: false,
     alerts: {done: true, failed: true, paused: true},
-    quiet: {on: false, start: '22:00', end: '07:00'},
-    relayUrl: ''
+    quiet: {on: false, start: '22:00', end: '07:00'}
   };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -20,10 +19,6 @@
       if (typeof s.quiet.on === 'boolean') out.quiet.on = s.quiet.on;
       if (isValidTime(s.quiet.start)) out.quiet.start = s.quiet.start;
       if (isValidTime(s.quiet.end)) out.quiet.end = s.quiet.end;
-    }
-    if (typeof s.relayUrl === 'string') {
-      var trimmed = s.relayUrl.trim();
-      out.relayUrl = trimmed === '' || /^https:\/\/[^\s]+$/.test(trimmed) ? trimmed : '';
     }
     return out;
   }
