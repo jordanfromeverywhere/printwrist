@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PrintWrist settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-lock" viewBox="0 0 16 16"><path d="M4 7V5a4 4 0 1 1 8 0v2h1v8H3V7zm2 0h4V5a2 2 0 1 0-4 0z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5-1.4-1.4L8.2 8 4.6 4.4z"/></symbol>
+  </defs>
+</svg>
+
+<div id="notice" class="notice hidden" role="alert"></div>
+
+<section id="view-signin" class="hidden">
+  <h1>Connect your printer</h1>
+  <p class="lede">Use the Bambu Lab account you already use in Bambu Handy.</p>
+  <form id="signin-form">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button id="signin-btn" class="cta" type="submit">
+      <span id="signin-btn-label">Sign in</span>
+    </button>
+    <div class="fine">
+      <svg><use href="#i-lock"/></svg>
+      <span>Your password goes straight to Bambu Lab. It is never sent to PrintWrist's server.</span>
+    </div>
+  </form>
+</section>
+
+<section id="view-code" class="hidden">
+  <h1>Enter your code</h1>
+  <p class="lede">Bambu emailed you a 6-digit code.</p>
+  <div class="code-wrap">
+    <div class="code-boxes" id="code-boxes">
+      <div></div><div></div><div></div><div></div><div></div><div></div>
+    </div>
+    <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="\d{6}" aria-label="6-digit code">
+  </div>
+  <button id="verify-btn" class="cta" type="button">Verify</button>
+  <div class="fine"><span>Number keypad and one-tap autofill from your email app.</span></div>
+</section>
+
+<section id="view-settings" class="hidden">
+  <div class="pcard">
+    <span class="dot" aria-hidden="true"></span>
+    <div>
+      <div class="t" id="printer-name">Printer</div>
+      <div class="s">Connected</div>
+    </div>
+  </div>
+
+  <label for="printer-select" id="printer-select-label" class="hidden">Printer</label>
+  <select id="printer-select" class="hidden"></select>
+
+  <div class="gh" style="margin-top:0">On the watch</div>
+  <div class="grp">
+    <div style="padding:12px 14px 0;font-size:16px">Status layout</div>
+    <div class="lay" role="radiogroup" aria-label="Status layout">
+      <button type="button" class="lay-opt" data-layout="arc" role="radio">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+          <circle cx="14" cy="14" r="10" fill="none" stroke="#3A3D43" stroke-width="4"/>
+          <circle cx="14" cy="14" r="10" fill="none" stroke="#55FF55" stroke-width="4" stroke-dasharray="62.8" stroke-dashoffset="22" transform="rotate(-90 14 14)"/>
+        </svg>
+        Arc
+      </button>
+      <button type="button" class="lay-opt" data-layout="big" role="radio">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+          <rect x="4" y="5" width="14" height="10" rx="2" fill="#C3C7CE"/>
+          <rect x="4" y="19" width="20" height="4" rx="2" fill="#3A3D43"/>
+          <rect x="4" y="19" width="13" height="4" rx="2" fill="#55FF55"/>
+        </svg>
+        Big number
+      </button>
+      <button type="button" class="lay-opt" data-layout="dense" role="radio">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+          <rect x="4" y="5" width="20" height="3" rx="1.5" fill="#55FF55"/>
+          <rect x="4" y="11" width="20" height="2" rx="1" fill="#C3C7CE"/>
+          <rect x="4" y="16" width="20" height="2" rx="1" fill="#C3C7CE"/>
+          <rect x="4" y="21" width="20" height="2" rx="1" fill="#C3C7CE"/>
+        </svg>
+        Dense
+      </button>
+    </div>
+    <div class="it">
+      <div class="label-col">Pause and stop buttons<div class="sub">Off by default so a stray press can't stop a print</div></div>
+      <button type="button" class="tg off" id="toggle-control" role="switch" aria-checked="false" aria-label="Pause and stop buttons"></button>
+    </div>
+  </div>
+
+  <div class="gh">Alerts</div>
+  <div class="grp">
+    <div class="it">
+      <span>Print done</span>
+      <button type="button" class="tg" id="toggle-done" role="switch" aria-checked="true" aria-label="Print done"></button>
+    </div>
+    <div class="it">
+      <span>Failed or error</span>
+      <button type="button" class="tg" id="toggle-failed" role="switch" aria-checked="true" aria-label="Failed or error"></button>
+    </div>
+    <div class="it">
+      <span>Paused</span>
+      <button type="button" class="tg" id="toggle-paused" role="switch" aria-checked="true" aria-label="Paused"></button>
+    </div>
+    <div class="it">
+      <div class="label-col">Quiet hours<div class="sub">No vibration for done or paused. Failed still vibrates.</div></div>
+      <button type="button" class="tg off" id="toggle-quiet" role="switch" aria-checked="false" aria-label="Quiet hours"></button>
+    </div>
+    <div class="quiet-times">
+      <div>
+        <label for="quiet-start">Start</label>
+        <input id="quiet-start" type="time">
+      </div>
+      <div>
+        <label for="quiet-end">End</label>
+        <input id="quiet-end" type="time">
+      </div>
+    </div>
+  </div>
+
+  <div class="gh">Advanced</div>
+  <div class="grp">
+    <div class="it">
+      <div class="label-col">
+        <label for="relay-url" style="margin:0 0 6px">Relay server</label>
+        <input id="relay-url" type="text" placeholder="Default">
+      </div>
+    </div>
+    <button type="button" class="it button-row danger" id="signout-btn">Sign out</button>
+  </div>
+</section>
+
+<div id="save-bar" class="save-bar hidden">
+  <button type="button" class="cta" id="save-btn">Save</button>
+</div>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  var state = PWConfig.parseState(location.hash);
+  var local = {
+    serial: state.serial,
+    settings: PWConfig.mergeSettings(state.settings)
+  };
+
+  function go(result) {
+    location.href = PWConfig.closeUrl(result);
+  }
+
+  function showView(id) {
+    ['view-signin', 'view-code', 'view-settings', 'save-bar'].forEach(function (v) {
+      document.getElementById(v).classList.add('hidden');
+    });
+    document.getElementById(id).classList.remove('hidden');
+    if (id === 'view-settings') document.getElementById('save-bar').classList.remove('hidden');
+  }
+
+  var noticeEl = document.getElementById('notice');
+  if (state.notice) {
+    noticeEl.textContent = state.notice;
+    noticeEl.classList.remove('hidden');
+  }
+
+  if (state.signedIn) {
+    renderSettings();
+    showView('view-settings');
+  } else if (state.awaitingCode) {
+    showView('view-code');
+  } else {
+    if (state.email) document.getElementById('email').value = state.email;
+    showView('view-signin');
+  }
+
+  // Sign-in
+  document.getElementById('signin-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = document.getElementById('signin-btn');
+    var label = document.getElementById('signin-btn-label');
+    var email = document.getElementById('email').value;
+    var password = document.getElementById('password').value;
+    btn.disabled = true;
+    btn.classList.add('busy');
+    label.innerHTML = '<span class="spin"></span>Signing in…';
+    setTimeout(function () { go(PWConfig.loginResult(email, password)); }, 0);
+  });
+
+  // One-time code
+  var codeInput = document.getElementById('code');
+  var codeBoxes = document.getElementById('code-boxes').children;
+  codeInput.addEventListener('input', function () {
+    var digits = codeInput.value.replace(/\D/g, '').slice(0, 6);
+    codeInput.value = digits;
+    for (var i = 0; i < codeBoxes.length; i++) {
+      codeBoxes[i].textContent = digits[i] || '';
+      codeBoxes[i].classList.toggle('filled', !!digits[i]);
+      codeBoxes[i].classList.toggle('next', i === digits.length);
+    }
+  });
+  document.getElementById('verify-btn').addEventListener('click', function () {
+    go(PWConfig.codeResult(codeInput.value));
+  });
+
+  // Settings
+  function findPrinter(serial) {
+    for (var i = 0; i < state.printers.length; i++) {
+      if (state.printers[i].serial === serial) return state.printers[i];
+    }
+    return state.printers[0];
+  }
+
+  function renderPrinterCard() {
+    var p = findPrinter(local.serial);
+    document.getElementById('printer-name').textContent = p ? p.name : 'Printer';
+  }
+
+  function renderSettings() {
+    if (!local.serial && state.printers.length) local.serial = state.printers[0].serial;
+    renderPrinterCard();
+
+    if (state.printers.length > 1) {
+      var sel = document.getElementById('printer-select');
+      sel.innerHTML = '';
+      state.printers.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.serial;
+        opt.textContent = p.name;
+        if (p.serial === local.serial) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.classList.remove('hidden');
+      document.getElementById('printer-select-label').classList.remove('hidden');
+      sel.addEventListener('change', function () {
+        local.serial = sel.value;
+        renderPrinterCard();
+      });
+    }
+
+    var layoutButtons = document.querySelectorAll('.lay-opt');
+    function paintLayout() {
+      layoutButtons.forEach(function (b) {
+        var on = b.getAttribute('data-layout') === local.settings.layout;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-checked', String(on));
+      });
+    }
+    layoutButtons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        local.settings.layout = b.getAttribute('data-layout');
+        paintLayout();
+      });
+    });
+    paintLayout();
+
+    function wireToggle(id, get, set) {
+      var el = document.getElementById(id);
+      function paint() {
+        var on = get();
+        el.classList.toggle('off', !on);
+        el.setAttribute('aria-checked', String(on));
+      }
+      el.addEventListener('click', function () {
+        set(!get());
+        paint();
+      });
+      paint();
+    }
+
+    wireToggle('toggle-control',
+      function () { return local.settings.controlEnabled; },
+      function (v) { local.settings.controlEnabled = v; });
+    wireToggle('toggle-done',
+      function () { return local.settings.alerts.done; },
+      function (v) { local.settings.alerts.done = v; });
+    wireToggle('toggle-failed',
+      function () { return local.settings.alerts.failed; },
+      function (v) { local.settings.alerts.failed = v; });
+    wireToggle('toggle-paused',
+      function () { return local.settings.alerts.paused; },
+      function (v) { local.settings.alerts.paused = v; });
+    wireToggle('toggle-quiet',
+      function () { return local.settings.quiet.on; },
+      function (v) { local.settings.quiet.on = v; });
+
+    var startEl = document.getElementById('quiet-start');
+    var endEl = document.getElementById('quiet-end');
+    startEl.value = local.settings.quiet.start;
+    endEl.value = local.settings.quiet.end;
+    startEl.addEventListener('change', function () {
+      if (PWConfig.isValidTime(startEl.value)) local.settings.quiet.start = startEl.value;
+    });
+    endEl.addEventListener('change', function () {
+      if (PWConfig.isValidTime(endEl.value)) local.settings.quiet.end = endEl.value;
+    });
+
+    var relayEl = document.getElementById('relay-url');
+    relayEl.value = local.settings.relayUrl;
+    relayEl.addEventListener('change', function () {
+      local.settings.relayUrl = relayEl.value;
+    });
+
+    document.getElementById('signout-btn').addEventListener('click', function () {
+      go({action: 'signout'});
+    });
+
+    document.getElementById('save-btn').addEventListener('click', function () {
+      go(PWConfig.saveResult(local.serial, local.settings));
+    });
+  }
+})();
+</script>
+</body>
+</html>
