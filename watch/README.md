@@ -53,3 +53,7 @@ npm installs) under `test/`. Run them on Windows with:
 ```bash
 cd watch && node --test test/*.test.js
 ```
+
+## Security Warning
+
+Never sign in through `pebble emu-app-config`: the SDK helper logs the settings page's returned data, including your password.

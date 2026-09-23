@@ -88,7 +88,7 @@ void ui_draw_conn(GContext *ctx, GRect body, ConnState c) {
   switch (c) {
     case CONN_NEED_LOGIN: msg = "Open PrintWrist settings on your phone to sign in."; break;
     case CONN_NEED_CODE: msg = "Enter the code from your email in PrintWrist settings."; break;
-    case CONN_RELAY_DOWN: msg = "Can't reach the PrintWrist service. Retrying."; break;
+    case CONN_RELAY_DOWN: msg = "Can't reach Bambu Lab. Retrying."; break;
     case CONN_TFA_UNSUPPORTED: msg = "Accounts that use an authenticator app aren't supported yet."; break;
     case CONN_NO_PRINTER: msg = "No printer found on this Bambu account."; break;
     default: break;
