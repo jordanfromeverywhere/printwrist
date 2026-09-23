@@ -15,7 +15,7 @@ var PRINTER_KEY = 'pw_printer';  // {serial, name}
 var settings = S.load(localStorage);
 var conn = C.CONN.connecting, notice = '', printers = [];
 var lastStage = null, live = null, retryTimer = null;
-var reconnectAlerted = false, authFailures = 0;
+var reconnectAlerted = false, authFailures = 0, ensureGen = 0;
 var messenger = new Messenger(function (msg, ok, fail) { Pebble.sendAppMessage(msg, ok, fail); });
 
 function getJSON(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
@@ -27,6 +27,7 @@ function configMsg() { return P.configMessage(settings, conn, printer().name || 
 function setConn(c) { conn = c; messenger.push(configMsg()); }
 
 function stopLive() {
+  ensureGen++;
   if (live) { live.stop(); live = null; }
   if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
 }
@@ -96,12 +97,17 @@ function onLiveState(state) {
 }
 
 function ensurePrinter() {
+  var gen = ++ensureGen;
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
   withToken(function (token) {
+    if (gen !== ensureGen) return;
     if (!token) return signedOut(false);
     devices.getUsername(http, token, function (err, username) {
+      if (gen !== ensureGen) return;
       if (err && err.kind === 'auth') return handleAuthFailure();
       if (err) { setConn(C.CONN.relayDown); return retryLater(30000); }
       devices.listDevices(http, token, function (err2, list) {
+        if (gen !== ensureGen) return;
         if (err2 && err2.kind === 'auth') return handleAuthFailure();
         if (err2) { setConn(C.CONN.relayDown); return retryLater(30000); }
         printers = list;
@@ -190,6 +196,7 @@ Pebble.addEventListener('webviewclosed', function (e) {
     var chosen = printers.filter(function (d) { return d.serial === r.serial; })[0];
     if (chosen && chosen.serial !== printer().serial) {
       setJSON(PRINTER_KEY, {serial: chosen.serial, name: chosen.name});
+      lastStage = null;
       return ensurePrinter();
     }
     setConn(conn);
