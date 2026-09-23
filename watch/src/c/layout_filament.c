@@ -29,13 +29,17 @@ static void draw_slot(GContext *ctx, GRect box, const char *type, int32_t color,
   if (active) {
     graphics_context_set_stroke_color(ctx, GColorScreaminGreen);
     graphics_context_set_stroke_width(ctx, 2);
-    graphics_draw_round_rect(ctx, box, 6);
+  } else {
+    graphics_context_set_stroke_color(ctx, GColorDarkGray);
+    graphics_context_set_stroke_width(ctx, 1);
   }
+  graphics_draw_round_rect(ctx, box, 6);
 }
 
 void layout_filament_draw(GContext *ctx, GRect b, const PrintState *s) {
-  int x = b.origin.x + 12, w = b.size.w - 24;
-  int box_w = w / 2, box_h = 44, gap = 6;
+  int x = b.origin.x + 12, right_margin = 22, gap = 6;
+  int w = b.size.w - 12 - right_margin;
+  int box_w = (b.size.w - 12 - right_margin - gap) / 2, box_h = 44;
 
   graphics_context_set_text_color(ctx, GColorLightGray);
   graphics_draw_text(ctx, "FILAMENT", fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD),
