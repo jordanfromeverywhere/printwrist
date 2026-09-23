@@ -1,6 +1,6 @@
 (function (root) {
   var DEFAULT_SETTINGS = {
-    layout: 'arc', controlEnabled: false,
+    layout: 'arc',
     alerts: {done: true, failed: true, paused: true},
     quiet: {on: false, start: '22:00', end: '07:00'}
   };
@@ -11,7 +11,6 @@
     var out = clone(DEFAULT_SETTINGS);
     s = s || {};
     if (s.layout === 'arc' || s.layout === 'big' || s.layout === 'dense') out.layout = s.layout;
-    if (typeof s.controlEnabled === 'boolean') out.controlEnabled = s.controlEnabled;
     ['done', 'failed', 'paused'].forEach(function (k) {
       if (s.alerts && typeof s.alerts[k] === 'boolean') out.alerts[k] = s.alerts[k];
     });
@@ -41,6 +40,7 @@
 
   function loginResult(email, password) { return {action: 'login', email: String(email).trim(), password: String(password)}; }
   function codeResult(code) { return {action: 'code', code: String(code).replace(/\D/g, '')}; }
+  function resendResult() { return {action: 'resend'}; }
   function saveResult(serial, settings) { return {action: 'save', serial: serial, settings: mergeSettings(settings)}; }
 
   var RETURN_TO_ALLOWED = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//;
@@ -69,7 +69,7 @@
 
   function closeUrl(result, returnTo) { return (returnTo || 'pebblejs://close#') + encodeURIComponent(JSON.stringify(result)); }
 
-  var api = {parseState: parseState, loginResult: loginResult, codeResult: codeResult,
+  var api = {parseState: parseState, loginResult: loginResult, codeResult: codeResult, resendResult: resendResult,
              saveResult: saveResult, closeUrl: closeUrl, returnToFromSearch: returnToFromSearch, isValidTime: isValidTime,
              mergeSettings: mergeSettings, DEFAULT_SETTINGS: DEFAULT_SETTINGS};
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PWConfig = api;

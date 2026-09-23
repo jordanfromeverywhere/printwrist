@@ -39,7 +39,9 @@
 
 <section id="view-code" class="hidden">
   <h1>Enter your code</h1>
-  <p class="lede">Bambu emailed you a 6-digit code.</p>
+  <div class="code-success" id="code-success" style="display:none">
+    <p class="lede">Bambu emailed a 6-digit code to <span id="code-email"></span></p>
+  </div>
   <div class="code-wrap">
     <div class="code-boxes" id="code-boxes">
       <div></div><div></div><div></div><div></div><div></div><div></div>
@@ -48,7 +50,11 @@
   </div>
   <button id="verify-btn" class="cta" type="button">Verify</button>
   <div class="fine"><span>Number keypad and one-tap autofill from your email app.</span></div>
-  <button type="button" class="text-btn" id="restart-btn">Start over</button>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;font-size:14px">
+    <button type="button" class="text-btn" id="resend-btn">Resend code</button>
+    <span style="opacity:0.3">·</span>
+    <button type="button" class="text-btn" id="restart-btn">Start over</button>
+  </div>
 </section>
 
 <section id="view-settings" class="hidden">
@@ -91,10 +97,6 @@
         </svg>
         Dense
       </button>
-    </div>
-    <div class="it">
-      <div class="label-col">Pause and stop buttons<div class="sub">Off by default so a stray press can't stop a print</div></div>
-      <button type="button" class="tg off" id="toggle-control" role="switch" aria-checked="false" aria-label="Pause and stop buttons"></button>
     </div>
   </div>
 
@@ -186,6 +188,10 @@
     showView('view-settings');
   } else if (state.awaitingCode) {
     showView('view-code');
+    if (state.email) {
+      document.getElementById('code-email').textContent = state.email;
+      document.getElementById('code-success').style.display = 'block';
+    }
     updateCodeBoxes();
   } else {
     if (state.email) document.getElementById('email').value = state.email;
@@ -197,12 +203,18 @@
     e.preventDefault();
     var btn = document.getElementById('signin-btn');
     var label = document.getElementById('signin-btn-label');
+    var msg = document.createElement('p');
+    msg.style.marginTop = '12px';
+    msg.className = 'lede';
+    msg.textContent = 'One moment. This screen will come right back with the code step.';
     var email = document.getElementById('email').value;
     var password = document.getElementById('password').value;
     btn.disabled = true;
     btn.classList.add('busy');
     label.innerHTML = '<span class="spin"></span>Signing in…';
-    setTimeout(function () { go(PWConfig.loginResult(email, password)); }, 0);
+    var formEl = document.getElementById('signin-form');
+    formEl.appendChild(msg);
+    setTimeout(function () { go(PWConfig.loginResult(email, password)); }, 150);
   });
 
   // One-time code
@@ -215,6 +227,9 @@
   codeInput.addEventListener('blur', updateCodeBoxes);
   document.getElementById('verify-btn').addEventListener('click', function () {
     go(PWConfig.codeResult(codeInput.value));
+  });
+  document.getElementById('resend-btn').addEventListener('click', function () {
+    go(PWConfig.resendResult());
   });
   document.getElementById('restart-btn').addEventListener('click', function () {
     go({action: 'signout'});
@@ -285,9 +300,6 @@
       paint();
     }
 
-    wireToggle('toggle-control',
-      function () { return local.settings.controlEnabled; },
-      function (v) { local.settings.controlEnabled = v; });
     wireToggle('toggle-done',
       function () { return local.settings.alerts.done; },
       function (v) { local.settings.alerts.done = v; });

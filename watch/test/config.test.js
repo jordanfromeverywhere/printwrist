@@ -6,7 +6,6 @@ test('parseState decodes hash and fills defaults', function () {
   var s = C.parseState('#' + encodeURIComponent(JSON.stringify({signedIn: true, email: 'a@b.c'})));
   assert.strictEqual(s.signedIn, true);
   assert.strictEqual(s.settings.layout, 'arc');
-  assert.strictEqual(s.settings.controlEnabled, false);
   assert.deepStrictEqual(s.settings.quiet, {on: false, start: '22:00', end: '07:00'});
 });
 
@@ -72,4 +71,17 @@ test('settings no longer carry a relay URL', function () {
   var s = C.parseState('#' + encodeURIComponent(JSON.stringify({settings: {relayUrl: 'https://x.example'}})));
   assert.strictEqual(Object.prototype.hasOwnProperty.call(s.settings, 'relayUrl'), false);
   assert.strictEqual(Object.prototype.hasOwnProperty.call(C.DEFAULT_SETTINGS, 'relayUrl'), false);
+});
+
+test('resendResult returns action: resend', function () {
+  assert.deepStrictEqual(C.resendResult(), {action: 'resend'});
+});
+
+test('DEFAULT_SETTINGS has no controlEnabled', function () {
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(C.DEFAULT_SETTINGS, 'controlEnabled'), false);
+});
+
+test('parseState settings have no controlEnabled', function () {
+  var s = C.parseState('#' + encodeURIComponent(JSON.stringify({signedIn: true})));
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(s.settings, 'controlEnabled'), false);
 });
