@@ -40,19 +40,10 @@ test('alertEnabled honors settings, reconnect always on', function () {
   assert.ok(A.alertEnabled('reconnect', S.merge({alerts: {done: false, failed: false, paused: false}})));
 });
 
-test('poll delay speeds up near the end', function () {
-  assert.strictEqual(A.nextPollDelayMs({stage: 'printing', progress: 97}), 30000);
-  assert.strictEqual(A.nextPollDelayMs({stage: 'printing', progress: 98}), 10000);
-  assert.strictEqual(A.nextPollDelayMs({stage: 'done', progress: 100}), 30000);
-  assert.strictEqual(A.nextPollDelayMs(null), 30000);
-});
-
-test('settings defaults and relay base', function () {
+test('settings defaults', function () {
   var s = S.merge(null);
   assert.strictEqual(s.layout, 'arc');
   assert.strictEqual(s.controlEnabled, false);
-  assert.strictEqual(S.relayBase(s), require('../src/pkjs/constants.js').DEFAULT_RELAY);
-  assert.strictEqual(S.relayBase(S.merge({relayUrl: 'https://mine.example/'})), 'https://mine.example');
 });
 
 test('nextAlertState ignores offline blips', function () {
@@ -67,9 +58,8 @@ test('nextAlertState ignores offline blips', function () {
   assert.deepStrictEqual(s3, {kind: null, lastStage: 'done'});
 });
 
-test('settings.merge rejects non-https relayUrl', function () {
-  assert.strictEqual(S.merge({relayUrl: 'http://x'}).relayUrl, '');
-  assert.strictEqual(S.merge({relayUrl: 'https://mine.example/'}).relayUrl, 'https://mine.example/');
-  assert.strictEqual(S.merge({relayUrl: 'junk'}).relayUrl, '');
-  assert.strictEqual(S.merge({relayUrl: ''}).relayUrl, '');
+test('settings have no relay URL', function () {
+  var s = S.merge({relayUrl: 'https://x.example'});
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(s, 'relayUrl'), false);
+  assert.strictEqual(typeof S.relayBase, 'undefined');
 });

@@ -1,5 +1,5 @@
 module.exports = {
-  DEFAULT_RELAY: 'http://10.0.0.41:8000',
+  CONFIG_URL: 'https://jordanfromeverywhere.github.io/printwrist/config/',
   STAGE_CODES: {idle: 0, printing: 1, paused: 2, done: 3, failed: 4, offline: 5},
   ALERT_CODES: {done: 1, failed: 2, paused: 3, reconnect: 4},
   LAYOUT_CODES: {arc: 0, big: 1, dense: 2},

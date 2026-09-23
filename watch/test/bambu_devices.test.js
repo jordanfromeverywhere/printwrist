@@ -13,3 +13,15 @@ test('getUsername maps uid and errors', function () {
   devices.getUsername(http(new Error('x')), 'T', function (e) { out.push(e.kind); });
   assert.deepStrictEqual(out, [[null, 'u_42'], 'auth', 'server', 'server', 'network']);
 });
+
+test('listDevices maps devices and uses GET', function () {
+  var seenMethod;
+  var h = function (m, u, b, t, cb) {
+    seenMethod = m;
+    cb(null, {status: 200, json: {devices: [{dev_id: 'ABC12345', name: 'Workshop', online: true}]}});
+  };
+  var out;
+  devices.listDevices(h, 'TOK', function (e, list) { out = list; });
+  assert.deepStrictEqual(out, [{serial: 'ABC12345', name: 'Workshop', online: true}]);
+  assert.strictEqual(seenMethod, 'GET');
+});

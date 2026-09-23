@@ -4,7 +4,7 @@ var A = require('./alerts.js');
 var P = require('./pack.js');
 var auth = require('./bambu_auth.js');
 var devices = require('./bambu_devices.js');
-var relay = require('./relay_client.js');
+var Live = require('./bambu_live.js');
 var http = require('./xhr_http.js');
 var Messenger = require('./messenger.js');
 
@@ -13,18 +13,32 @@ var PENDING_KEY = 'pw_pending';  // {email} while waiting for an email code
 var PRINTER_KEY = 'pw_printer';  // {serial, name}
 
 var settings = S.load(localStorage);
-var lastStage = null, pollTimer = null, conn = C.CONN.connecting, notice = '', printers = [], reconnectAlerted = false;
-var authFailures = 0;
+var conn = C.CONN.connecting, notice = '', printers = [];
+var lastStage = null, live = null, retryTimer = null;
+var reconnectAlerted = false, authFailures = 0;
 var messenger = new Messenger(function (msg, ok, fail) { Pebble.sendAppMessage(msg, ok, fail); });
 
 function getJSON(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
 function setJSON(k, v) { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }
 function printer() { return getJSON(PRINTER_KEY) || {}; }
-function merge(a, b) { var out = {}, k; for (k in a) out[k] = a[k]; for (k in b) out[k] = b[k]; return out; }
+function merge(a, b) { var o = {}, k; for (k in a) o[k] = a[k]; for (k in b) o[k] = b[k]; return o; }
 
-function setConn(c) {
-  conn = c;
-  messenger.push(P.configMessage(settings, conn, printer().name || ''));
+function configMsg() { return P.configMessage(settings, conn, printer().name || ''); }
+function setConn(c) { conn = c; messenger.push(configMsg()); }
+
+function stopLive() {
+  if (live) { live.stop(); live = null; }
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+}
+
+function retryLater(ms) {
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = setTimeout(function () { retryTimer = null; ensurePrinter(); }, ms);
+}
+
+function saveAuth(r, fallback) {
+  var a = fallback || getJSON(AUTH_KEY) || {};
+  setJSON(AUTH_KEY, {token: r.token, refresh: r.refresh || a.refresh || null, expiresAt: r.expiresAt, email: a.email});
 }
 
 function withToken(cb) {
@@ -33,83 +47,79 @@ function withToken(cb) {
   if (a.expiresAt - Date.now() > 5 * 60 * 1000 || !a.refresh) return cb(a.token);
   auth.refresh(http, a.refresh, function (r) {
     if (r.state !== 'ok') return cb(a.token);
-    setJSON(AUTH_KEY, {token: r.token, refresh: r.refresh || a.refresh, expiresAt: r.expiresAt, email: a.email});
+    saveAuth(r, a);
     cb(r.token);
   });
 }
 
 function signedOut(showAlert) {
-  stopPolling();
+  stopLive();
   setJSON(AUTH_KEY, null);
   setConn(C.CONN.needLogin);
   if (showAlert && !reconnectAlerted) {
+    reconnectAlerted = true;
     var m = P.statusToMessage({stage: lastStage || 'offline'});
     m.ALERT_KIND = C.ALERT_CODES.reconnect;
     m.VIBRATE = 1;
     messenger.push(m);
-    reconnectAlerted = true;
   }
 }
 
-function stopPolling() { if (pollTimer) clearTimeout(pollTimer); pollTimer = null; }
-function schedule(ms) { stopPolling(); pollTimer = setTimeout(poll, ms); }
-
-function poll() {
-  var p = printer();
-  if (!p.serial) return ensurePrinter();
-  withToken(function (token) {
-    if (!token) return signedOut(false);
-    relay.fetchStatus(http, S.relayBase(settings), token, p.serial, function (err, status) {
-      if (err && err.kind === 'auth') {
-        authFailures++;
-        if (authFailures < 2) {
-          return auth.refresh(http, (getJSON(AUTH_KEY) || {}).refresh, function (r) {
-            if (r.state !== 'ok') return schedule(30000);
-            authFailures = 0;
-            var a = getJSON(AUTH_KEY) || {};
-            setJSON(AUTH_KEY, {token: r.token, refresh: r.refresh || a.refresh, expiresAt: r.expiresAt, email: a.email});
-            schedule(1000);
-          });
-        }
-        return signedOut(true);
-      }
-      if (err) {
-        if (err.kind !== 'rate' && conn !== C.CONN.relayDown) setConn(C.CONN.relayDown);
-        return schedule(30000);
-      }
-      authFailures = 0;
-      if (conn !== C.CONN.ok) setConn(C.CONN.ok);
-      var msg = merge(P.configMessage(settings, conn, printer().name || ''), P.statusToMessage(status));
-      var next = A.nextAlertState(lastStage, status.stage);
-      if (next.kind && A.alertEnabled(next.kind, settings)) {
-        msg.ALERT_KIND = C.ALERT_CODES[next.kind];
-        msg.VIBRATE = A.shouldVibrate(next.kind, new Date(), settings) ? 1 : 0;
-      }
-      lastStage = next.lastStage;
-      messenger.push(msg);
-      schedule(A.nextPollDelayMs(status));
-    });
+function handleAuthFailure() {
+  stopLive();
+  authFailures++;
+  if (authFailures >= 2) return signedOut(true);
+  var a = getJSON(AUTH_KEY) || {};
+  auth.refresh(http, a.refresh, function (r) {
+    if (r.state === 'ok') saveAuth(r, a);
+    retryLater(r.state === 'ok' ? 1000 : 30000);
   });
+}
+
+function onStatus(status) {
+  authFailures = 0;
+  if (conn !== C.CONN.ok) conn = C.CONN.ok;
+  var msg = merge(configMsg(), P.statusToMessage(status));
+  var next = A.nextAlertState(lastStage, status.stage);
+  lastStage = next.lastStage;
+  if (next.kind && A.alertEnabled(next.kind, settings)) {
+    msg.ALERT_KIND = C.ALERT_CODES[next.kind];
+    msg.VIBRATE = A.shouldVibrate(next.kind, new Date(), settings) ? 1 : 0;
+  }
+  messenger.push(msg);
+}
+
+function onLiveState(state) {
+  if (state === 'live') { authFailures = 0; if (conn !== C.CONN.ok) setConn(C.CONN.ok); }
+  else if (state === 'down') { if (conn !== C.CONN.relayDown) setConn(C.CONN.relayDown); }
+  else if (state === 'auth') { live = null; handleAuthFailure(); }
 }
 
 function ensurePrinter() {
   withToken(function (token) {
     if (!token) return signedOut(false);
-    devices.listDevices(http, token, function (err, list) {
-      if (err && err.kind === 'auth') return signedOut(true);
-      if (err) { setConn(C.CONN.relayDown); return schedule(30000); }
-      printers = list;
-      if (!list.length) { setConn(C.CONN.noPrinter); return schedule(60000); }
-      var saved = printer();
-      var keep = list.filter(function (d) { return d.serial === saved.serial; })[0] || list[0];
-      setJSON(PRINTER_KEY, {serial: keep.serial, name: keep.name});
-      setConn(C.CONN.connecting);
-      poll();
+    devices.getUsername(http, token, function (err, username) {
+      if (err && err.kind === 'auth') return handleAuthFailure();
+      if (err) { setConn(C.CONN.relayDown); return retryLater(30000); }
+      devices.listDevices(http, token, function (err2, list) {
+        if (err2 && err2.kind === 'auth') return handleAuthFailure();
+        if (err2) { setConn(C.CONN.relayDown); return retryLater(30000); }
+        printers = list;
+        if (!list.length) { setConn(C.CONN.noPrinter); return retryLater(60000); }
+        var saved = printer();
+        var keep = list.filter(function (d) { return d.serial === saved.serial; })[0] || list[0];
+        setJSON(PRINTER_KEY, {serial: keep.serial, name: keep.name});
+        stopLive();
+        setConn(C.CONN.connecting);
+        live = new Live({username: username, token: token, serial: keep.serial},
+                        {onStatus: onStatus, onState: onLiveState});
+        live.start();
+      });
     });
   });
 }
 
-function onLoginResult(r, email, isCodeAttempt) {
+function onLoginResult(r, email) {
   if (r.state === 'ok') {
     setJSON(PENDING_KEY, null);
     setJSON(AUTH_KEY, {token: r.token, refresh: r.refresh, expiresAt: r.expiresAt, email: email});
@@ -120,8 +130,9 @@ function onLoginResult(r, email, isCodeAttempt) {
     return ensurePrinter();
   }
   if (r.state === 'need_code') {
-    return auth.sendCode(http, email, function (ok) {
-      if (!ok) {
+    return auth.sendCode(http, email, function (sent) {
+      if (!sent) {
+        setJSON(PENDING_KEY, null);
         notice = "Couldn't send the code email. Try signing in again.";
         return setConn(C.CONN.needLogin);
       }
@@ -133,10 +144,6 @@ function onLoginResult(r, email, isCodeAttempt) {
   if (r.state === 'tfa_unsupported') {
     notice = "Accounts that use an authenticator app aren't supported yet.";
     return setConn(C.CONN.tfaUnsupported);
-  }
-  if (isCodeAttempt) {
-    notice = "That code didn't work. Check the latest email or start over.";
-    return setConn(C.CONN.needCode);
   }
   notice = r.message || 'Sign in failed.';
   setConn(C.CONN.needLogin);
@@ -150,18 +157,26 @@ function configState() {
 }
 
 Pebble.addEventListener('showConfiguration', function () {
-  Pebble.openURL(C.DEFAULT_RELAY + '/config/#' + encodeURIComponent(JSON.stringify(configState())));
+  Pebble.openURL(C.CONFIG_URL + '#' + encodeURIComponent(JSON.stringify(configState())));
 });
 
 Pebble.addEventListener('webviewclosed', function (e) {
-  var r;
+  var r, pend;
   try { r = JSON.parse(decodeURIComponent(e.response || '')); } catch (err) { return; }
   if (!r || !r.action) return;
-  if (r.action === 'login') return auth.login(http, r.email, r.password, function (res) { onLoginResult(res, r.email, false); });
+  if (r.action === 'login') {
+    return auth.login(http, r.email, r.password, function (res) { onLoginResult(res, r.email); });
+  }
   if (r.action === 'code') {
-    var pend = getJSON(PENDING_KEY);
+    pend = getJSON(PENDING_KEY);
     if (!pend) return setConn(C.CONN.needLogin);
-    return auth.loginWithCode(http, pend.email, r.code, function (res) { onLoginResult(res, pend.email, true); });
+    return auth.loginWithCode(http, pend.email, r.code, function (res) {
+      if (res.state === 'error') {
+        notice = "That code didn't work. Check the latest email or start over.";
+        return setConn(C.CONN.needCode);
+      }
+      onLoginResult(res, pend.email);
+    });
   }
   if (r.action === 'signout') {
     setJSON(PRINTER_KEY, null);
@@ -173,33 +188,25 @@ Pebble.addEventListener('webviewclosed', function (e) {
     settings = S.merge(r.settings);
     S.save(localStorage, settings);
     var chosen = printers.filter(function (d) { return d.serial === r.serial; })[0];
-    if (chosen) setJSON(PRINTER_KEY, {serial: chosen.serial, name: chosen.name});
+    if (chosen && chosen.serial !== printer().serial) {
+      setJSON(PRINTER_KEY, {serial: chosen.serial, name: chosen.name});
+      return ensurePrinter();
+    }
     setConn(conn);
-    schedule(500);
   }
 });
 
 Pebble.addEventListener('appmessage', function (e) {
   var code = e.payload.CONTROL_ACTION;
+  if (code === undefined) return;
   var action = C.CONTROL_ACTIONS[code];
-  if (!action || !settings.controlEnabled) {
+  if (!action || !settings.controlEnabled || !live) {
     return messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed});
   }
-  withToken(function (token) {
-    if (!token) {
-      messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed});
-      return signedOut(false);
-    }
-    var serial = printer().serial;
-    if (!serial) {
-      return messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed});
-    }
-    relay.sendControl(http, S.relayBase(settings), token, serial, action, function (err, result) {
-      var out = err ? C.CONTROL_RESULT.failed
-        : (result === 'rejected' ? C.CONTROL_RESULT.rejected : C.CONTROL_RESULT.ok);
-      messenger.push({CONTROL_RESULT: out});
-      schedule(1500);
-    });
+  live.command(action, function (result) {
+    var out = result === 'rejected' ? C.CONTROL_RESULT.rejected
+      : (result === 'offline' ? C.CONTROL_RESULT.failed : C.CONTROL_RESULT.ok);
+    messenger.push({CONTROL_RESULT: out});
   });
 });
 

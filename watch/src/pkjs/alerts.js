@@ -28,9 +28,5 @@ function shouldVibrate(kind, date, settings) {
 
 function alertEnabled(kind, settings) { return kind === 'reconnect' || !!settings.alerts[kind]; }
 
-function nextPollDelayMs(status) {
-  return status && status.stage === 'printing' && status.progress >= 98 ? 10000 : 30000;
-}
-
 module.exports = {detectAlert: detectAlert, nextAlertState: nextAlertState, inQuietHours: inQuietHours,
-                  shouldVibrate: shouldVibrate, alertEnabled: alertEnabled, nextPollDelayMs: nextPollDelayMs};
+                  shouldVibrate: shouldVibrate, alertEnabled: alertEnabled};
