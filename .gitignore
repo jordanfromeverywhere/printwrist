@@ -1,0 +1,9 @@
+__pycache__/
+.venv/
+.pytest_cache/
+build/
+node_modules/
+*.pbw
+.printwrist/
+relay/signer/plugin/
+relay/signer/build/
