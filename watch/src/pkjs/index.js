@@ -136,23 +136,32 @@ function onLoginResult(r, email) {
     return ensurePrinter();
   }
   if (r.state === 'need_code') {
-    return auth.sendCode(http, email, function (sent) {
-      if (!sent) {
-        setJSON(PENDING_KEY, null);
-        notice = "Couldn't send the code email. Try signing in again.";
-        return setConn(C.CONN.needLogin);
-      }
-      setJSON(PENDING_KEY, {email: email});
-      notice = '';
-      setConn(C.CONN.needCode);
-    });
+    setJSON(PENDING_KEY, {email: email});
+    notice = '';
+    setConn(C.CONN.needCode);
+    return showSettings();
   }
   if (r.state === 'tfa_unsupported') {
     notice = "Accounts that use an authenticator app aren't supported yet.";
-    return setConn(C.CONN.tfaUnsupported);
+    setConn(C.CONN.tfaUnsupported);
+    return showSettings();
   }
   notice = r.message || 'Sign in failed.';
   setConn(C.CONN.needLogin);
+  showSettings();
+}
+
+function submitCode(code) {
+  var pend = getJSON(PENDING_KEY);
+  if (!pend) return setConn(C.CONN.needLogin);
+  auth.loginWithCode(http, pend.email, code, function (res) {
+    if (res.state === 'error') {
+      notice = "That code didn't work. Check the latest email or start over.";
+      setConn(C.CONN.needCode);
+      return showSettings();
+    }
+    onLoginResult(res, pend.email);
+  });
 }
 
 function configState() {
@@ -162,8 +171,16 @@ function configState() {
           serial: printer().serial || '', settings: settings};
 }
 
+function showSettings() {
+  try {
+    Pebble.openURL(C.CONFIG_URL + '#' + encodeURIComponent(JSON.stringify(configState())));
+  } catch (e) {
+    console.log('PrintWrist: could not reopen settings');
+  }
+}
+
 Pebble.addEventListener('showConfiguration', function () {
-  Pebble.openURL(C.CONFIG_URL + '#' + encodeURIComponent(JSON.stringify(configState())));
+  showSettings();
 });
 
 Pebble.addEventListener('webviewclosed', function (e) {
@@ -174,21 +191,21 @@ Pebble.addEventListener('webviewclosed', function (e) {
     return auth.login(http, r.email, r.password, function (res) { onLoginResult(res, r.email); });
   }
   if (r.action === 'code') {
-    pend = getJSON(PENDING_KEY);
-    if (!pend) return setConn(C.CONN.needLogin);
-    return auth.loginWithCode(http, pend.email, r.code, function (res) {
-      if (res.state === 'error') {
-        notice = "That code didn't work. Check the latest email or start over.";
-        return setConn(C.CONN.needCode);
-      }
-      onLoginResult(res, pend.email);
-    });
+    return submitCode(r.code);
   }
   if (r.action === 'signout') {
     setJSON(PRINTER_KEY, null);
     setJSON(PENDING_KEY, null);
     notice = '';
     return signedOut(false);
+  }
+  if (r.action === 'resend') {
+    pend = getJSON(PENDING_KEY);
+    if (!pend) return setConn(C.CONN.needLogin);
+    return auth.sendCode(http, pend.email, function (sent) {
+      notice = sent ? 'We sent a new code.' : "Couldn't send the code email. Try again in a minute.";
+      showSettings();
+    });
   }
   if (r.action === 'save') {
     settings = S.merge(r.settings);
@@ -204,12 +221,14 @@ Pebble.addEventListener('webviewclosed', function (e) {
 });
 
 Pebble.addEventListener('appmessage', function (e) {
-  var code = e.payload.CONTROL_ACTION;
-  if (code === undefined) return;
-  var action = C.CONTROL_ACTIONS[code];
-  if (!action || !settings.controlEnabled || !live) {
-    return messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed});
+  var p = e.payload || {};
+  if (typeof p.CODE === 'string') {
+    if (/^\d{6}$/.test(p.CODE)) submitCode(p.CODE);
+    return;
   }
+  if (p.CONTROL_ACTION === undefined) return;
+  var action = C.CONTROL_ACTIONS[p.CONTROL_ACTION];
+  if (!action || !live) return messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed});
   live.command(action, function (result) {
     var out = result === 'rejected' ? C.CONTROL_RESULT.rejected
       : (result === 'offline' ? C.CONTROL_RESULT.failed : C.CONTROL_RESULT.ok);
