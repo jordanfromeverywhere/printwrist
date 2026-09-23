@@ -43,7 +43,7 @@ test('alertEnabled honors settings, reconnect always on', function () {
 test('settings defaults', function () {
   var s = S.merge(null);
   assert.strictEqual(s.layout, 'arc');
-  assert.strictEqual(s.controlEnabled, false);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(s, 'controlEnabled'), false);
 });
 
 test('nextAlertState ignores offline blips', function () {

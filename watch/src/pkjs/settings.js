@@ -1,5 +1,5 @@
 var KEY = 'pw_settings';
-var DEFAULTS = {layout: 'arc', controlEnabled: false, alerts: {done: true, failed: true, paused: true},
+var DEFAULTS = {layout: 'arc', alerts: {done: true, failed: true, paused: true},
                 quiet: {on: false, start: '22:00', end: '07:00'}};
 
 function validTime(t) { return typeof t === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(t); }
@@ -8,7 +8,6 @@ function merge(s) {
   var out = JSON.parse(JSON.stringify(DEFAULTS));
   s = s || {};
   if (s.layout === 'arc' || s.layout === 'big' || s.layout === 'dense') out.layout = s.layout;
-  if (typeof s.controlEnabled === 'boolean') out.controlEnabled = s.controlEnabled;
   ['done', 'failed', 'paused'].forEach(function (k) {
     if (s.alerts && typeof s.alerts[k] === 'boolean') out.alerts[k] = s.alerts[k];
   });
