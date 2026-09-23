@@ -164,3 +164,21 @@ test('a client that fails before opening reports down and retries', function () 
   timers.advance(1);
   assert.strictEqual(clients.length, 2);
 });
+
+test('light, speed and refresh commands', function () {
+  var s = setup(), c = clients[0], out = [];
+  c.h.onConnect();
+  s.live.command('light_on', function (r) { out.push(r); });
+  var light = c.pubs[1][1].system;
+  assert.deepStrictEqual([light.command, light.led_node, light.led_mode, light.led_on_time, light.led_off_time, light.loop_times, light.interval_time],
+                         ['ledctrl', 'chamber_light', 'on', 500, 500, 0, 0]);
+  c.h.onMessage('device/S1/report', JSON.stringify({system: {command: 'ledctrl', sequence_id: light.sequence_id, result: 'success'}}));
+  s.live.command('speed_3', function (r) { out.push(r); });
+  var spd = c.pubs[2][1].print;
+  assert.deepStrictEqual([spd.command, spd.param], ['print_speed', '3']);
+  msg(c, {command: 'print_speed', sequence_id: spd.sequence_id, result: 'success'});
+  s.live.command('refresh', function (r) { out.push(r); });
+  assert.strictEqual(c.pubs[3][1].pushing.command, 'pushall');
+  s.live.command('launch_rocket', function (r) { out.push(r); });
+  assert.deepStrictEqual(out, ['ok', 'ok', 'ok', 'rejected']);
+});

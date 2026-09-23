@@ -23,6 +23,21 @@ function classifyReply(p) {
   return String(p.result === undefined ? 'success' : p.result).toLowerCase() === 'success' ? 'ok' : 'rejected';
 }
 
+function buildCommand(action, seq) {
+  var m;
+  if (action === 'pause' || action === 'resume' || action === 'stop') {
+    return {body: {print: {sequence_id: seq, command: action, param: ''}}, reply: action};
+  }
+  if (action === 'light_on' || action === 'light_off') {
+    return {body: {system: {sequence_id: seq, command: 'ledctrl', led_node: 'chamber_light',
+                            led_mode: action === 'light_on' ? 'on' : 'off', led_on_time: 500,
+                            led_off_time: 500, loop_times: 0, interval_time: 0}}, reply: 'ledctrl'};
+  }
+  m = /^speed_([1-4])$/.exec(action);
+  if (m) return {body: {print: {sequence_id: seq, command: 'print_speed', param: m[1]}}, reply: 'print_speed'};
+  return null;
+}
+
 function Live(opts, handlers) {
   this.o = opts;
   this.h = handlers;
@@ -182,19 +197,15 @@ Live.prototype.emitOffline = function () {
 };
 
 Live.prototype.command = function (action, cb) {
-  var self = this, seq, entry;
+  var self = this, seq, cmd, entry;
   if (!this.client) { cb('offline'); return; }
+  if (action === 'refresh') { this.requestFull(); cb('ok'); return; }
   seq = String(this.seq++);
-  if (!this.client.publish('device/' + this.o.serial + '/request',
-                           JSON.stringify({print: {sequence_id: seq, command: action, param: ''}}))) {
-    cb('offline');
-    return;
-  }
-  entry = {action: action, cb: cb};
-  entry.timer = this.timers.set(function () {
-    delete self.pending[seq];
-    cb('unconfirmed');
-  }, COMMAND_MS);
+  cmd = buildCommand(action, seq);
+  if (!cmd) { cb('rejected'); return; }
+  if (!this.client.publish('device/' + this.o.serial + '/request', JSON.stringify(cmd.body))) { cb('offline'); return; }
+  entry = {action: cmd.reply, cb: cb};
+  entry.timer = this.timers.set(function () { delete self.pending[seq]; cb('unconfirmed'); }, COMMAND_MS);
   this.pending[seq] = entry;
 };
 
