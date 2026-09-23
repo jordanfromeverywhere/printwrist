@@ -55,7 +55,13 @@ def _ams(p: dict) -> dict | None:
     if now == "255":
         return None
     if now == "254":
-        tray = p.get("vt_tray") or {}
+        tray = p.get("vt_tray")
+        if not tray:
+            vir_slot = p.get("vir_slot")
+            if isinstance(vir_slot, list) and vir_slot:
+                tray = vir_slot[0]
+            else:
+                tray = {}
         return {"slot": "Ext", "type": tray.get("tray_type") or "", "color": _color(tray.get("tray_color"))}
     idx = _num(now)
     if idx is None:

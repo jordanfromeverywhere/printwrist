@@ -63,6 +63,12 @@ def test_ams_external_and_none():
     assert normalize(report(gcode_state="IDLE", ams={"tray_now": "255"}))["ams"] is None
 
 
+def test_ams_external_from_vir_slot():
+    ext = normalize(report(gcode_state="RUNNING", ams={"tray_now": "254"},
+                           vir_slot=[{"id": "255", "tray_type": "TPU", "tray_color": "9B9EA0FF"}]))
+    assert ext["ams"] == {"slot": "Ext", "type": "TPU", "color": "9B9EA0"}
+
+
 def test_nested_temperature_fallbacks():
     dev = {"extruder": {"info": [{"temp": 220}]}, "bed": {"info": {"temp": 55}},
            "ctc": {"info": {"temp": 38}}}
