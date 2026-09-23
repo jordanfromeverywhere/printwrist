@@ -47,6 +47,10 @@ h1 {
   margin: 4px 0 16px;
 }
 
+.signin-message {
+  margin-top: 12px;
+}
+
 .hidden { display: none !important; }
 
 .notice {
@@ -57,6 +61,16 @@ h1 {
   padding: 12px 14px;
   font-size: 14px;
   margin-bottom: 16px;
+}
+
+.ok {
+  background: #12301A;
+  border: 1px solid #2E6B3C;
+  color: #9BF2A9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  margin-bottom: 14px;
 }
 
 label {
@@ -169,6 +183,26 @@ button {
   padding: 8px;
   cursor: pointer;
   text-decoration: underline;
+}
+
+.code-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.code-actions .text-btn {
+  flex: 1;
+  margin-top: 0;
+  padding: 8px 4px;
+}
+
+.code-actions .separator {
+  opacity: 0.3;
+  padding: 0 4px;
+  flex: none;
 }
 
 /* one-time code */

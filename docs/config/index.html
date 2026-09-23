@@ -39,7 +39,7 @@
 
 <section id="view-code" class="hidden">
   <h1>Enter your code</h1>
-  <div class="code-success" id="code-success" style="display:none">
+  <div class="ok hidden" id="code-success">
     <p class="lede">Bambu emailed a 6-digit code to <span id="code-email"></span></p>
   </div>
   <div class="code-wrap">
@@ -50,9 +50,9 @@
   </div>
   <button id="verify-btn" class="cta" type="button">Verify</button>
   <div class="fine"><span>Number keypad and one-tap autofill from your email app.</span></div>
-  <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;font-size:14px">
+  <div class="code-actions">
     <button type="button" class="text-btn" id="resend-btn">Resend code</button>
-    <span style="opacity:0.3">·</span>
+    <span class="separator">·</span>
     <button type="button" class="text-btn" id="restart-btn">Start over</button>
   </div>
 </section>
@@ -190,7 +190,7 @@
     showView('view-code');
     if (state.email) {
       document.getElementById('code-email').textContent = state.email;
-      document.getElementById('code-success').style.display = 'block';
+      document.getElementById('code-success').classList.remove('hidden');
     }
     updateCodeBoxes();
   } else {
@@ -204,8 +204,7 @@
     var btn = document.getElementById('signin-btn');
     var label = document.getElementById('signin-btn-label');
     var msg = document.createElement('p');
-    msg.style.marginTop = '12px';
-    msg.className = 'lede';
+    msg.className = 'lede signin-message';
     msg.textContent = 'One moment. This screen will come right back with the code step.';
     var email = document.getElementById('email').value;
     var password = document.getElementById('password').value;
