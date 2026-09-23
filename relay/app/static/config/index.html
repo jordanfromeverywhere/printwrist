@@ -48,6 +48,7 @@
   </div>
   <button id="verify-btn" class="cta" type="button">Verify</button>
   <div class="fine"><span>Number keypad and one-tap autofill from your email app.</span></div>
+  <button type="button" class="text-btn" id="restart-btn">Start over</button>
 </section>
 
 <section id="view-settings" class="hidden">
@@ -219,6 +220,9 @@
   codeInput.addEventListener('blur', updateCodeBoxes);
   document.getElementById('verify-btn').addEventListener('click', function () {
     go(PWConfig.codeResult(codeInput.value));
+  });
+  document.getElementById('restart-btn').addEventListener('click', function () {
+    go({action: 'signout'});
   });
 
   // Settings

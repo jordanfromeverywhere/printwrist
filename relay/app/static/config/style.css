@@ -157,6 +157,20 @@ button {
   min-height: 16px;
 }
 
+.text-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-family: inherit;
+  text-align: center;
+  margin-top: 16px;
+  padding: 8px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 /* one-time code */
 .code-wrap {
   position: relative;

@@ -25,3 +25,10 @@ test('isValidTime', function () {
   assert.ok(!C.isValidTime('7:00'));
   assert.ok(!C.isValidTime('24:00'));
 });
+
+test('mergeSettings rejects non-https relayUrl', function () {
+  assert.strictEqual(C.mergeSettings({relayUrl: 'http://x'}).relayUrl, '');
+  assert.strictEqual(C.mergeSettings({relayUrl: 'https://mine.example/'}).relayUrl, 'https://mine.example/');
+  assert.strictEqual(C.mergeSettings({relayUrl: 'junk'}).relayUrl, '');
+  assert.strictEqual(C.mergeSettings({relayUrl: ''}).relayUrl, '');
+});
