@@ -13,10 +13,10 @@ static const char *conn_banner(ConnState c) {
   switch (c) {
     case CONN_CONNECTING: return "Connecting...";
     case CONN_NEED_LOGIN: return "Sign in again on your phone";
-    case CONN_NEED_CODE: return "Enter the email code on your phone";
+    case CONN_NEED_CODE: return "Enter code on your phone";
     case CONN_RELAY_DOWN: return "Can't reach service";
-    case CONN_TFA_UNSUPPORTED: return "Authenticator 2FA not supported";
-    case CONN_NO_PRINTER: return "No printer on this account";
+    case CONN_TFA_UNSUPPORTED: return "2FA app not supported";
+    case CONN_NO_PRINTER: return "No printer on account";
     default: return NULL;
   }
 }
