@@ -9,6 +9,18 @@ static Layer *s_canvas;
 static char s_toast[40];
 static AppTimer *s_toast_timer;
 
+static const char *conn_banner(ConnState c) {
+  switch (c) {
+    case CONN_CONNECTING: return "Connecting...";
+    case CONN_NEED_LOGIN: return "Sign in again on your phone";
+    case CONN_NEED_CODE: return "Enter the email code on your phone";
+    case CONN_RELAY_DOWN: return "Can't reach service";
+    case CONN_TFA_UNSUPPORTED: return "Authenticator 2FA not supported";
+    case CONN_NO_PRINTER: return "No printer on this account";
+    default: return NULL;
+  }
+}
+
 static void draw(Layer *layer, GContext *ctx) {
   GRect b = layer_get_bounds(layer);
   graphics_context_set_fill_color(ctx, GColorBlack);
@@ -25,9 +37,7 @@ static void draw(Layer *layer, GContext *ctx) {
       layout_arc_draw(ctx, b, &g_state);
       break;
   }
-  const char *banner = s_toast[0] ? s_toast
-    : (g_state.conn == CONN_RELAY_DOWN ? "Can't reach service"
-    : (g_state.conn == CONN_NEED_LOGIN ? "Sign in again on your phone" : NULL));
+  const char *banner = s_toast[0] ? s_toast : conn_banner(g_state.conn);
   if (banner) {
     GRect r = GRect(0, b.size.h - 20, b.size.w, 20);
     graphics_context_set_fill_color(ctx, GColorDarkGray);

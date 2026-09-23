@@ -1,11 +1,14 @@
 #include <pebble.h>
 #include "control_menu.h"
 #include "messaging.h"
+#include "status_window.h"
 
 static ActionMenuLevel *s_root, *s_stop;
 
 static void perform(ActionMenu *menu, const ActionMenuItem *item, void *ctx) {
-  messaging_send_control((int)(uintptr_t)action_menu_item_get_action_data(item));
+  if (!messaging_send_control((int)(uintptr_t)action_menu_item_get_action_data(item))) {
+    status_window_toast("Couldn't send");
+  }
 }
 
 static void did_close(ActionMenu *menu, const ActionMenuItem *item, void *ctx) {

@@ -59,9 +59,9 @@ void messaging_init(StateChangedFn on_state, AlertFn on_alert, ControlResultFn o
   app_message_open(1024, 128);
 }
 
-void messaging_send_control(int action) {
+bool messaging_send_control(int action) {
   DictionaryIterator *out;
-  if (app_message_outbox_begin(&out) != APP_MSG_OK) return;
+  if (app_message_outbox_begin(&out) != APP_MSG_OK) return false;
   dict_write_int32(out, MESSAGE_KEY_CONTROL_ACTION, action);
-  app_message_outbox_send();
+  return app_message_outbox_send() == APP_MSG_OK;
 }
