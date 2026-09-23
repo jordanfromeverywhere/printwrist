@@ -17,7 +17,12 @@ typedef struct {
   char job[32], ams_label[20], error_code[12], printer_name[24];
   ConnState conn;
   Layout layout;
-  bool control_enabled, has_status;
+  bool has_status;
+  int nozzle_target, bed_target, fan_part, fan_aux, fan_chamber, speed_level, light, tray_active;
+  char tray_type[4][8];
+  int32_t tray_color[4];
+  char ext_type[8];
+  int32_t ext_color;
 } PrintState;
 
 extern PrintState g_state;

@@ -3,7 +3,12 @@
 #include "status_window.h"
 #include "alert_window.h"
 
-static void on_state(void) { status_window_refresh(); }
+static void on_state(void) {
+  static ConnState s_prev_conn = CONN_CONNECTING;
+  if (g_state.conn == CONN_NEED_CODE && s_prev_conn != CONN_NEED_CODE) vibes_short_pulse();
+  s_prev_conn = g_state.conn;
+  status_window_refresh();
+}
 static void on_alert(AlertKind kind, bool vibrate) { alert_window_show(kind, vibrate); }
 static void on_control(int result) {
   status_window_toast(result == 0 ? "Command sent" : (result == 1 ? "Printer refused" : "Couldn't send"));

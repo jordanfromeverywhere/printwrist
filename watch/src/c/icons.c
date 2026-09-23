@@ -41,5 +41,28 @@ void icon_draw(GContext *ctx, IconId id, GPoint o, GColor color) {
     case ICON_PAUSE:
       rect(ctx, x + 2, y + 1, 3, 10); rect(ctx, x + 7, y + 1, 3, 10);
       break;
+    case ICON_FAN:
+      rect(ctx, x + 5, y, 2, 3); rect(ctx, x + 5, y + 9, 2, 3);
+      rect(ctx, x, y + 5, 3, 2); rect(ctx, x + 9, y + 5, 3, 2);
+      rect(ctx, x + 5, y + 5, 2, 2);
+      break;
+    case ICON_SPEED: {
+      GPoint c = GPoint(x + 6, y + 7);
+      int32_t a0 = -TRIG_MAX_ANGLE / 4, a1 = TRIG_MAX_ANGLE / 4;
+      int px = c.x + sin_lookup(a0) * 6 / TRIG_MAX_RATIO;
+      int py = c.y - cos_lookup(a0) * 6 / TRIG_MAX_RATIO;
+      for (int i = 1; i <= 8; i++) {
+        int32_t angle = a0 + (a1 - a0) * i / 8;
+        int qx = c.x + sin_lookup(angle) * 6 / TRIG_MAX_RATIO;
+        int qy = c.y - cos_lookup(angle) * 6 / TRIG_MAX_RATIO;
+        line(ctx, px, py, qx, qy);
+        px = qx; py = qy;
+      }
+      int32_t needle = -TRIG_MAX_ANGLE / 10;
+      int nx = c.x + sin_lookup(needle) * 5 / TRIG_MAX_RATIO;
+      int ny = c.y - cos_lookup(needle) * 5 / TRIG_MAX_RATIO;
+      line(ctx, c.x, c.y, nx, ny);
+      break;
+    }
   }
 }

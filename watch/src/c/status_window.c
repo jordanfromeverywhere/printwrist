@@ -2,12 +2,14 @@
 #include "layouts.h"
 #include "ui_common.h"
 #include "control_menu.h"
+#include "code_window.h"
 
 static Window *s_window;
 static StatusBarLayer *s_bar;
 static Layer *s_canvas;
 static char s_toast[40];
 static AppTimer *s_toast_timer;
+static int s_page;
 
 static const char *conn_banner(ConnState c) {
   switch (c) {
@@ -21,22 +23,43 @@ static const char *conn_banner(ConnState c) {
   }
 }
 
+static void draw_dots(GContext *ctx, GRect b) {
+  int dot_x = b.origin.x + b.size.w - 8;
+  int cy = b.origin.y + b.size.h / 2;
+  int centers[3] = {cy - 10, cy, cy + 10};
+  for (int i = 0; i < 3; i++) {
+    graphics_context_set_fill_color(ctx, i == s_page ? GColorWhite : GColorDarkGray);
+    graphics_fill_rect(ctx, GRect(dot_x, centers[i] - 2, 5, 5), 3, GCornersAll);
+  }
+}
+
 static void draw(Layer *layer, GContext *ctx) {
   GRect b = layer_get_bounds(layer);
   graphics_context_set_fill_color(ctx, GColorBlack);
   graphics_fill_rect(ctx, b, 0, GCornerNone);
   if (!g_state.has_status && g_state.conn != CONN_OK) { ui_draw_conn(ctx, b, g_state.conn); return; }
-  switch (g_state.layout) {
-    case LAYOUT_BIG:
-      layout_big_draw(ctx, b, &g_state);
+  switch (s_page) {
+    case 1:
+      layout_details_draw(ctx, b, &g_state);
       break;
-    case LAYOUT_DENSE:
-      layout_dense_draw(ctx, b, &g_state);
+    case 2:
+      layout_filament_draw(ctx, b, &g_state);
       break;
     default:
-      layout_arc_draw(ctx, b, &g_state);
+      switch (g_state.layout) {
+        case LAYOUT_BIG:
+          layout_big_draw(ctx, b, &g_state);
+          break;
+        case LAYOUT_DENSE:
+          layout_dense_draw(ctx, b, &g_state);
+          break;
+        default:
+          layout_arc_draw(ctx, b, &g_state);
+          break;
+      }
       break;
   }
+  draw_dots(ctx, b);
   const char *banner = s_toast[0] ? s_toast : conn_banner(g_state.conn);
   if (banner) {
     GRect r = GRect(0, b.size.h - 20, b.size.w, 20);
@@ -58,12 +81,24 @@ void status_window_toast(const char *text) {
   if (s_canvas) layer_mark_dirty(s_canvas);
 }
 
-static void select_long(ClickRecognizerRef r, void *ctx) {
-  if (g_state.control_enabled && g_state.conn == CONN_OK) control_menu_open(g_state.stage);
+static void select_click(ClickRecognizerRef r, void *ctx) {
+  if (g_state.conn == CONN_NEED_CODE) code_window_open();
+  else control_menu_open(g_state.stage);
 }
 
+static void page_click(int delta) {
+  if (!g_state.has_status && g_state.conn != CONN_OK) return;
+  s_page = (s_page + delta + 3) % 3;
+  if (s_canvas) layer_mark_dirty(s_canvas);
+}
+
+static void up_click(ClickRecognizerRef r, void *ctx) { page_click(-1); }
+static void down_click(ClickRecognizerRef r, void *ctx) { page_click(1); }
+
 static void click_config(void *ctx) {
-  window_long_click_subscribe(BUTTON_ID_SELECT, 600, select_long, NULL);
+  window_single_click_subscribe(BUTTON_ID_SELECT, select_click);
+  window_single_click_subscribe(BUTTON_ID_UP, up_click);
+  window_single_click_subscribe(BUTTON_ID_DOWN, down_click);
 }
 
 static void load(Window *w) {

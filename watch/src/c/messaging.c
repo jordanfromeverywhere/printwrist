@@ -3,7 +3,11 @@
 
 PrintState g_state = {.stage = STAGE_OFFLINE, .nozzle = TEMP_NONE, .bed = TEMP_NONE,
                       .chamber = TEMP_NONE, .ams_color = -1, .conn = CONN_CONNECTING,
-                      .layout = LAYOUT_ARC};
+                      .layout = LAYOUT_ARC,
+                      .nozzle_target = TEMP_NONE, .bed_target = TEMP_NONE,
+                      .fan_part = -1, .fan_aux = -1, .fan_chamber = -1,
+                      .speed_level = 0, .light = -1, .tray_active = -1,
+                      .tray_color = {-1, -1, -1, -1}, .ext_color = -1};
 
 static StateChangedFn s_on_state;
 static AlertFn s_on_alert;
@@ -38,7 +42,28 @@ static void inbox(DictionaryIterator *it, void *ctx) {
   read_str(it, MESSAGE_KEY_PRINTER_NAME, g_state.printer_name, sizeof g_state.printer_name);
   v = -1; read_int(it, MESSAGE_KEY_CONN_STATE, &v); if (v >= 0) g_state.conn = (ConnState)v;
   v = -1; read_int(it, MESSAGE_KEY_LAYOUT, &v); if (v >= 0) g_state.layout = (Layout)v;
-  v = -1; read_int(it, MESSAGE_KEY_CONTROL_ENABLED, &v); if (v >= 0) g_state.control_enabled = v == 1;
+
+  read_int(it, MESSAGE_KEY_NOZZLE_TARGET, &g_state.nozzle_target);
+  read_int(it, MESSAGE_KEY_BED_TARGET, &g_state.bed_target);
+  read_int(it, MESSAGE_KEY_FAN_PART, &g_state.fan_part);
+  read_int(it, MESSAGE_KEY_FAN_AUX, &g_state.fan_aux);
+  read_int(it, MESSAGE_KEY_FAN_CHAMBER, &g_state.fan_chamber);
+  read_int(it, MESSAGE_KEY_SPEED_LEVEL, &g_state.speed_level);
+  read_int(it, MESSAGE_KEY_LIGHT, &g_state.light);
+  read_int(it, MESSAGE_KEY_TRAY_ACTIVE, &g_state.tray_active);
+
+  uint32_t tray_type_keys[4] = {MESSAGE_KEY_TRAY0_TYPE, MESSAGE_KEY_TRAY1_TYPE,
+                                 MESSAGE_KEY_TRAY2_TYPE, MESSAGE_KEY_TRAY3_TYPE};
+  uint32_t tray_color_keys[4] = {MESSAGE_KEY_TRAY0_COLOR, MESSAGE_KEY_TRAY1_COLOR,
+                                  MESSAGE_KEY_TRAY2_COLOR, MESSAGE_KEY_TRAY3_COLOR};
+  for (int i = 0; i < 4; i++) {
+    read_str(it, tray_type_keys[i], g_state.tray_type[i], sizeof g_state.tray_type[i]);
+    Tuple *tc = dict_find(it, tray_color_keys[i]);
+    if (tc) g_state.tray_color[i] = tc->value->int32;
+  }
+  read_str(it, MESSAGE_KEY_EXT_TYPE, g_state.ext_type, sizeof g_state.ext_type);
+  Tuple *ec = dict_find(it, MESSAGE_KEY_EXT_COLOR);
+  if (ec) g_state.ext_color = ec->value->int32;
 
   if (s_on_state) s_on_state();
 
@@ -63,5 +88,12 @@ bool messaging_send_control(int action) {
   DictionaryIterator *out;
   if (app_message_outbox_begin(&out) != APP_MSG_OK) return false;
   dict_write_int32(out, MESSAGE_KEY_CONTROL_ACTION, action);
+  return app_message_outbox_send() == APP_MSG_OK;
+}
+
+bool messaging_send_code(const char *code) {
+  DictionaryIterator *out;
+  if (app_message_outbox_begin(&out) != APP_MSG_OK) return false;
+  dict_write_cstring(out, MESSAGE_KEY_CODE, code);
   return app_message_outbox_send() == APP_MSG_OK;
 }
