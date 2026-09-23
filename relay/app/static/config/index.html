@@ -148,13 +148,14 @@
 <script>
 (function () {
   var state = PWConfig.parseState(location.hash);
+  var returnTo = PWConfig.returnToFromSearch(location.search);
   var local = {
     serial: state.serial,
     settings: PWConfig.mergeSettings(state.settings)
   };
 
   function go(result) {
-    location.href = PWConfig.closeUrl(result);
+    location.href = PWConfig.closeUrl(result, returnTo);
   }
 
   function showView(id) {

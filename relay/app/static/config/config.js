@@ -47,10 +47,28 @@
   function loginResult(email, password) { return {action: 'login', email: String(email).trim(), password: String(password)}; }
   function codeResult(code) { return {action: 'code', code: String(code).replace(/\D/g, '')}; }
   function saveResult(serial, settings) { return {action: 'save', serial: serial, settings: mergeSettings(settings)}; }
-  function closeUrl(result) { return 'pebblejs://close#' + encodeURIComponent(JSON.stringify(result)); }
+
+  function returnToFromSearch(search) {
+    try {
+      var query = String(search || '').replace(/^\?/, '');
+      if (!query) return '';
+      var pairs = query.split('&');
+      for (var i = 0; i < pairs.length; i++) {
+        var pair = pairs[i].split('=');
+        if (pair[0] === 'return_to' && pair[1]) {
+          return decodeURIComponent(pair[1]);
+        }
+      }
+      return '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function closeUrl(result, returnTo) { return (returnTo || 'pebblejs://close#') + encodeURIComponent(JSON.stringify(result)); }
 
   var api = {parseState: parseState, loginResult: loginResult, codeResult: codeResult,
-             saveResult: saveResult, closeUrl: closeUrl, isValidTime: isValidTime,
+             saveResult: saveResult, closeUrl: closeUrl, returnToFromSearch: returnToFromSearch, isValidTime: isValidTime,
              mergeSettings: mergeSettings, DEFAULT_SETTINGS: DEFAULT_SETTINGS};
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PWConfig = api;
 })(this);

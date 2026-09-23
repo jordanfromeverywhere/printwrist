@@ -20,6 +20,24 @@ test('results and close url', function () {
   assert.strictEqual(url, 'pebblejs://close#' + encodeURIComponent('{"action":"signout"}'));
 });
 
+test('closeUrl with returnTo parameter', function () {
+  var url = C.closeUrl({action: 'signout'}, 'http://localhost:5000/close?');
+  assert.strictEqual(url, 'http://localhost:5000/close?' + encodeURIComponent('{"action":"signout"}'));
+});
+
+test('returnToFromSearch parses return_to param', function () {
+  assert.strictEqual(C.returnToFromSearch('?return_to=http%3A%2F%2Flocalhost%3A5000%2Fclose%3F'), 'http://localhost:5000/close?');
+});
+
+test('returnToFromSearch returns empty string for missing param', function () {
+  assert.strictEqual(C.returnToFromSearch(''), '');
+  assert.strictEqual(C.returnToFromSearch('?x=1'), '');
+});
+
+test('returnToFromSearch returns empty string for malformed encoding', function () {
+  assert.strictEqual(C.returnToFromSearch('?return_to=%E0%A4%A'), '');
+});
+
 test('isValidTime', function () {
   assert.ok(C.isValidTime('07:00'));
   assert.ok(!C.isValidTime('7:00'));
