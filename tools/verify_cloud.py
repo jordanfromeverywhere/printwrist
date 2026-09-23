@@ -14,7 +14,7 @@ API = "https://api.bambulab.com"
 BROKER, PORT = "us.mqtt.bambulab.com", 8883
 HOME = pathlib.Path.home() / ".printwrist"
 TOKEN_FILE = HOME / "token.json"
-FIX = pathlib.Path(__file__).resolve().parents[1] / "relay" / "tests" / "fixtures"
+FIX = pathlib.Path(__file__).resolve().parents[1] / "watch" / "test" / "fixtures"
 HEADERS = {"User-Agent": "bambu_network_agent/01.09.05.01", "Content-Type": "application/json"}
 SECRET_KEYS = {"dev_access_code", "access_code", "accessToken", "refreshToken", "token", "ip",
                "ipaddr", "ip_addr", "mac", "ttcode", "authkey", "passwd", "password", "email", "wifi_signal",
