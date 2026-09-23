@@ -1,10 +1,11 @@
-from app.errors import AuthError
+from app.errors import AuthError, UpstreamError
 
 
 class FakeTransport:
-    def __init__(self, messages, fail_auth=False):
+    def __init__(self, messages, fail_auth=False, fail_upstream=False):
         self.messages = list(messages)
         self.fail_auth = fail_auth
+        self.fail_upstream = fail_upstream
         self.published = []
         self.subscribed = []
         self.closed = False
@@ -12,6 +13,8 @@ class FakeTransport:
     def open(self):
         if self.fail_auth:
             raise AuthError("bad token")
+        if self.fail_upstream:
+            raise UpstreamError("broker down")
 
     def subscribe(self, topic):
         self.subscribed.append(topic)

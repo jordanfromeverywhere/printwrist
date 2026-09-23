@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.errors import AuthError
+from app.errors import AuthError, UpstreamError
 from app.main import create_app
 from tests.fakes import FakeTransport
 
@@ -8,11 +8,11 @@ TOKEN = "t" * 40
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 
 
-def client(messages=None, fail_auth=False, resolver=None, clock=None):
+def client(messages=None, fail_auth=False, fail_upstream=False, resolver=None, clock=None):
     made = []
 
     def factory(user, token):
-        t = FakeTransport(messages or [], fail_auth=fail_auth)
+        t = FakeTransport(messages or [], fail_auth=fail_auth, fail_upstream=fail_upstream)
         made.append((user, token, t))
         return t
 
@@ -67,3 +67,16 @@ def test_rate_limited_429():
     c, _ = client([], clock=[0.0, 0.5])
     assert c.post("/status", json={"serial": "ABC12345"}, headers=AUTH).status_code == 200
     assert c.post("/status", json={"serial": "ABC12345"}, headers=AUTH).status_code == 429
+
+
+def test_profile_unreachable_502():
+    def resolver(tok):
+        raise UpstreamError("profile service down")
+    c, _ = client(resolver=resolver)
+    assert c.post("/status", json={"serial": "ABC12345"}, headers=AUTH).status_code == 502
+
+
+def test_broker_unreachable_502():
+    c, made = client(fail_upstream=True)
+    assert c.post("/status", json={"serial": "ABC12345"}, headers=AUTH).status_code == 502
+    assert not made[0][2].closed
