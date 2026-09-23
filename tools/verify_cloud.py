@@ -17,7 +17,8 @@ TOKEN_FILE = HOME / "token.json"
 FIX = pathlib.Path(__file__).resolve().parents[1] / "relay" / "tests" / "fixtures"
 HEADERS = {"User-Agent": "bambu_network_agent/01.09.05.01", "Content-Type": "application/json"}
 SECRET_KEYS = {"dev_access_code", "access_code", "accessToken", "refreshToken", "token", "ip",
-               "ipaddr", "ip_addr", "mac", "ttcode", "authkey", "passwd", "password", "email", "wifi_signal"}
+               "ipaddr", "ip_addr", "mac", "ttcode", "authkey", "passwd", "password", "email", "wifi_signal",
+               "fun", "fun2"}
 ALL_SERIALS = []
 
 
