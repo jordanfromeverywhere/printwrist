@@ -12,7 +12,8 @@ var AUTH_KEY = 'pw_auth';        // {token, refresh, expiresAt, email}
 var PENDING_KEY = 'pw_pending';  // {email} while waiting for an email code
 var PRINTER_KEY = 'pw_printer';  // {serial, name}
 
-var settings, lastStage = null, pollTimer = null, conn = C.CONN.connecting, notice = '', printers = [];
+var settings = S.load(localStorage);
+var lastStage = null, pollTimer = null, conn = C.CONN.connecting, notice = '', printers = [], reconnectAlerted = false;
 var messenger = new Messenger(function (msg, ok, fail) { Pebble.sendAppMessage(msg, ok, fail); });
 
 function getJSON(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
@@ -39,11 +40,12 @@ function signedOut(showAlert) {
   stopPolling();
   setJSON(AUTH_KEY, null);
   setConn(C.CONN.needLogin);
-  if (showAlert) {
+  if (showAlert && !reconnectAlerted) {
     var m = P.statusToMessage({stage: lastStage || 'offline'});
     m.ALERT_KIND = C.ALERT_CODES.reconnect;
     m.VIBRATE = 1;
     messenger.push(m);
+    reconnectAlerted = true;
   }
 }
 
@@ -89,7 +91,7 @@ function ensurePrinter() {
       if (err && err.kind === 'auth') return signedOut(true);
       if (err) { setConn(C.CONN.relayDown); return schedule(30000); }
       printers = list;
-      if (!list.length) return setConn(C.CONN.noPrinter);
+      if (!list.length) { setConn(C.CONN.noPrinter); return schedule(60000); }
       var saved = printer();
       var keep = list.filter(function (d) { return d.serial === saved.serial; })[0] || list[0];
       setJSON(PRINTER_KEY, {serial: keep.serial, name: keep.name});
@@ -104,6 +106,7 @@ function onLoginResult(r, email) {
     setJSON(PENDING_KEY, null);
     setJSON(AUTH_KEY, {token: r.token, refresh: r.refresh, expiresAt: r.expiresAt, email: email});
     notice = '';
+    reconnectAlerted = false;
     setConn(C.CONN.connecting);
     return ensurePrinter();
   }
@@ -159,7 +162,7 @@ Pebble.addEventListener('appmessage', function (e) {
   var action = C.CONTROL_ACTIONS[code];
   if (!action || !settings.controlEnabled) return;
   withToken(function (token) {
-    if (!token) return signedOut(true);
+    if (!token) return signedOut(false);
     relay.sendControl(http, S.relayBase(settings), token, printer().serial, action, function (err, result) {
       var out = err ? C.CONTROL_RESULT.failed
         : (result === 'rejected' ? C.CONTROL_RESULT.rejected : C.CONTROL_RESULT.ok);
