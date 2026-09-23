@@ -133,3 +133,25 @@ test('stop disconnects, fails pending commands, and never reconnects', function 
   assert.deepStrictEqual(out, ['offline']);
   assert.strictEqual(clients.length, 1);
 });
+
+test('a client that fails before opening reports down and retries', function () {
+  clients = [];
+  var timers = new Timers(), states = [];
+  var live = new Live({username: 'u_1', token: 'T', serial: 'S1', timers: timers, now: function () { return timers.t; },
+                       makeClient: function (o, h) {
+                         var c = new FakeClient(o, h);
+                         var origConnect = c.connect;
+                         c.connect = function () {
+                           h.onError('network', 'constructor failed');
+                           h.onClose(0, false);
+                         };
+                         return c;
+                       }},
+                      {onStatus: function (s) {}, onState: function (s) { states.push(s); }});
+  live.start();
+  assert.deepStrictEqual(states, ['connecting', 'down']);
+  timers.advance(4999);
+  assert.strictEqual(clients.length, 1);
+  timers.advance(1);
+  assert.strictEqual(clients.length, 2);
+});

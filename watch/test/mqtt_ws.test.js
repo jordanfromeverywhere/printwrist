@@ -142,3 +142,12 @@ test('disconnect sends DISCONNECT and reports closedByUs', function () {
   assert.deepStrictEqual(ws.sent[ws.sent.length - 1], [0xe0, 0x00]);
   assert.deepStrictEqual(closes, [true]);
 });
+
+test('constructor failure reports network error then close', function () {
+  var events = [];
+  var c = new MqttWs({url: 'wss://x/mqtt', username: 'u_1', password: 'tok', clientId: 'pw-x', keepalive: 30,
+                       WebSocket: function () { throw new Error('constructor failed'); }},
+                     {onError: function (k, d) { events.push(k); }, onClose: function (code, byUs) { events.push('close'); }});
+  c.connect();
+  assert.deepStrictEqual(events, ['network', 'close']);
+});

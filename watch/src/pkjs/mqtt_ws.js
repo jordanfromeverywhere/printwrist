@@ -112,6 +112,8 @@ MqttWs.prototype.fail = function (kind, detail) {
   if (this.h.onError) this.h.onError(kind, detail);
   if (this.ws && this.ws.readyState <= 1) {
     try { this.ws.close(); } catch (e) { this.log('close: ' + e); }
+  } else if (this.h.onClose) {
+    this.h.onClose(0, this.closedByUs);
   }
 };
 
