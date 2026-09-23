@@ -14,8 +14,17 @@ static void draw(Layer *layer, GContext *ctx) {
   graphics_context_set_fill_color(ctx, GColorBlack);
   graphics_fill_rect(ctx, b, 0, GCornerNone);
   if (!g_state.has_status && g_state.conn != CONN_OK) { ui_draw_conn(ctx, b, g_state.conn); return; }
-  // Task 12 adds big/dense; all layouts route to arc until then.
-  layout_arc_draw(ctx, b, &g_state);
+  switch (g_state.layout) {
+    case LAYOUT_BIG:
+      layout_big_draw(ctx, b, &g_state);
+      break;
+    case LAYOUT_DENSE:
+      layout_dense_draw(ctx, b, &g_state);
+      break;
+    default:
+      layout_arc_draw(ctx, b, &g_state);
+      break;
+  }
   const char *banner = s_toast[0] ? s_toast
     : (g_state.conn == CONN_RELAY_DOWN ? "Can't reach service"
     : (g_state.conn == CONN_NEED_LOGIN ? "Sign in again on your phone" : NULL));

@@ -7,3 +7,4 @@ node_modules/
 .printwrist/
 relay/signer/plugin/
 relay/signer/build/
+.lock-waf_linux_build
