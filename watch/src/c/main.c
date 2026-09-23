@@ -1,22 +1,19 @@
 #include <pebble.h>
-#include "c/messaging.h"
+#include "messaging.h"
+#include "status_window.h"
+#include "alert_window.h"
 
-static Window *s_win;
-static TextLayer *s_text;
-
-static void win_load(Window *w) {
-  Layer *root = window_get_root_layer(w);
-  s_text = text_layer_create(layer_get_bounds(root));
-  text_layer_set_text(s_text, "waiting");
-  layer_add_child(root, text_layer_get_layer(s_text));
+static void on_state(void) { status_window_refresh(); }
+static void on_alert(AlertKind kind, bool vibrate) { alert_window_show(kind, vibrate); }
+static void on_control(int result) {
+  status_window_toast(result == 0 ? "Command sent" : (result == 1 ? "Printer refused" : "Couldn't send"));
+  if (result == 0) vibes_short_pulse();
 }
 
 int main(void) {
-  s_win = window_create();
-  window_set_window_handlers(s_win, (WindowHandlers){.load = win_load});
-  window_stack_push(s_win, true);
-  messaging_init(NULL, NULL, NULL);
+  Window *w = status_window_create();
+  window_stack_push(w, true);
+  messaging_init(on_state, on_alert, on_control);
   app_event_loop();
-  text_layer_destroy(s_text);
-  window_destroy(s_win);
+  window_destroy(w);
 }
