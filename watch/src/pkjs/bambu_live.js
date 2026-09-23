@@ -142,6 +142,7 @@ Live.prototype.armStale = function () {
 Live.prototype.onReport = function (payload) {
   var msg, p;
   try { msg = JSON.parse(payload); } catch (e) { return; }
+  if (msg && isObj(msg.system)) this.resolvePending(msg.system);
   p = msg && msg.print;
   if (!isObj(p)) return;
   this.gotSinceRequest = true;

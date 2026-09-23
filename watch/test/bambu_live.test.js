@@ -97,6 +97,15 @@ test('commands: ok, rejected, unconfirmed, offline', function () {
   assert.deepStrictEqual(out, ['ok', 'rejected', 'unconfirmed', 'offline']);
 });
 
+test('command reply under system resolves', function () {
+  var s = setup(), c = clients[0], out = [];
+  c.h.onConnect();
+  s.live.command('stop', function (r) { out.push(r); });
+  var seq = c.pubs[1][1].print.sequence_id;
+  c.h.onMessage('device/S1/report', JSON.stringify({system: {command: 'stop', sequence_id: seq, result: 'success'}}));
+  assert.deepStrictEqual(out, ['ok']);
+});
+
 test('auth error stops without retry', function () {
   var s = setup(), c = clients[0];
   c.h.onError('auth', 'CONNACK 5');
