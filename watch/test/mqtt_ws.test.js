@@ -170,3 +170,53 @@ test('fail after CLOSED yields exactly one close', function () {
   ws.onerror();
   assert.deepStrictEqual(events, ['network', 'close']);
 });
+
+test('disconnect while connecting closes and never pings', function () {
+  var connected = false;
+  var c = client({onConnect: function () { connected = true; }});
+  var ws = FakeWS.last;
+  assert.strictEqual(ws.readyState, 0);
+  c.disconnect();
+  assert.ok(ws.closed);
+  ws.readyState = 1;
+  ws.onopen();
+  frame(ws, [0x20, 2, 0, 0]);
+  assert.strictEqual(connected, false);
+  assert.strictEqual(c.pingTimer, null);
+});
+
+test('keepalive timeout fails the connection', function () {
+  var t = 0;
+  function now() { return t; }
+  var events = [];
+  var c = new MqttWs({url: 'wss://x/mqtt', username: 'u_1', password: 'tok', clientId: 'pw-x', keepalive: 30,
+                       WebSocket: FakeWS, now: now},
+                     {onError: function (k, d) { events.push(k); }, onClose: function (code, byUs) { events.push('close'); }});
+  c.connect();
+  var ws = FakeWS.last;
+  open(ws);
+  frame(ws, [0x20, 2, 0, 0]);
+  t += 30 * 1500 + 1;
+  c.pingTick();
+  assert.deepStrictEqual(events, ['network', 'close']);
+  c.disconnect();
+});
+
+test('recent traffic keeps the connection', function () {
+  var t = 0;
+  function now() { return t; }
+  var events = [];
+  var c = new MqttWs({url: 'wss://x/mqtt', username: 'u_1', password: 'tok', clientId: 'pw-x', keepalive: 30,
+                       WebSocket: FakeWS, now: now},
+                     {onError: function (k, d) { events.push(k); }});
+  c.connect();
+  var ws = FakeWS.last;
+  open(ws);
+  frame(ws, [0x20, 2, 0, 0]);
+  ws.sent = [];
+  t += 10000;
+  c.pingTick();
+  assert.deepStrictEqual(ws.sent, [[0xc0, 0x00]]);
+  assert.deepStrictEqual(events, []);
+  c.disconnect();
+});

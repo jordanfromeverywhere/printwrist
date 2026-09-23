@@ -76,6 +76,7 @@ function MqttWs(opts, handlers) {
   this.opts = opts;
   this.h = handlers || {};
   this.WS = opts.WebSocket || (typeof WebSocket !== 'undefined' ? WebSocket : null);
+  this.now = opts.now || function () { return Date.now(); };
   this.ws = null;
   this.rx = [];
   this.pingTimer = null;
@@ -83,6 +84,7 @@ function MqttWs(opts, handlers) {
   this.closedByUs = false;
   this.failed = false;
   this.closeReported = false;
+  this.lastRx = 0;
 }
 
 MqttWs.prototype.log = function (s) { if (this.opts.debug) console.log('[mqtt] ' + s); };
@@ -96,6 +98,7 @@ MqttWs.prototype.emitClose = function (code) {
 
 MqttWs.prototype.connect = function () {
   var self = this;
+  this.lastRx = this.now();
   try {
     this.ws = new this.WS(this.opts.url, ['mqtt']);
   } catch (e) {
@@ -160,13 +163,24 @@ MqttWs.prototype.disconnect = function () {
   if (this.ws && this.ws.readyState === 1) {
     this.sendBytes([0xe0, 0x00]);
     try { this.ws.close(); } catch (e) { this.log('close: ' + e); }
+  } else if (this.ws && this.ws.readyState === 0) {
+    try { this.ws.close(); } catch (e) { this.log('close: ' + e); }
   }
 };
 
 MqttWs.prototype.startPing = function () {
   var self = this, ms = (this.opts.keepalive || 30) * 750;
   this.stopPing();
-  this.pingTimer = setInterval(function () { self.sendBytes([0xc0, 0x00]); }, ms);
+  this.pingTimer = setInterval(function () { self.pingTick(); }, ms);
+};
+
+MqttWs.prototype.pingTick = function () {
+  var ka = this.opts.keepalive || 30;
+  if (this.now() - this.lastRx > ka * 1500) {
+    this.fail('network', 'keepalive timeout');
+  } else {
+    this.sendBytes([0xc0, 0x00]);
+  }
 };
 
 MqttWs.prototype.stopPing = function () {
@@ -175,6 +189,7 @@ MqttWs.prototype.stopPing = function () {
 
 MqttWs.prototype.onFrame = function (data) {
   var i, u8;
+  this.lastRx = this.now();
   if (typeof data === 'string') {
     for (i = 0; i < data.length; i++) this.rx.push(data.charCodeAt(i) & 255);
   } else if (data && typeof data.byteLength === 'number') {
@@ -205,6 +220,7 @@ MqttWs.prototype.handlePacket = function (hdr, p, start, end) {
   if (type === 2) {
     rc = p[start + 1];
     if (rc === 0) {
+      if (this.closedByUs) return;
       this.startPing();
       if (this.h.onConnect) this.h.onConnect();
     } else {
