@@ -82,9 +82,17 @@ function MqttWs(opts, handlers) {
   this.packetId = 1;
   this.closedByUs = false;
   this.failed = false;
+  this.closeReported = false;
 }
 
 MqttWs.prototype.log = function (s) { if (this.opts.debug) console.log('[mqtt] ' + s); };
+
+MqttWs.prototype.emitClose = function (code) {
+  if (this.closeReported) return;
+  this.closeReported = true;
+  this.stopPing();
+  if (this.h.onClose) this.h.onClose(code, this.closedByUs);
+};
 
 MqttWs.prototype.connect = function () {
   var self = this;
@@ -99,8 +107,7 @@ MqttWs.prototype.connect = function () {
   this.ws.onmessage = function (ev) { self.onFrame(ev.data); };
   this.ws.onerror = function () { self.fail('network', 'socket error'); };
   this.ws.onclose = function (ev) {
-    self.stopPing();
-    if (self.h.onClose) self.h.onClose(ev && ev.code, self.closedByUs);
+    self.emitClose(ev && ev.code);
   };
 };
 
@@ -112,8 +119,8 @@ MqttWs.prototype.fail = function (kind, detail) {
   if (this.h.onError) this.h.onError(kind, detail);
   if (this.ws && this.ws.readyState <= 1) {
     try { this.ws.close(); } catch (e) { this.log('close: ' + e); }
-  } else if (this.h.onClose) {
-    this.h.onClose(0, this.closedByUs);
+  } else if (!this.ws || this.ws.readyState === 3) {
+    this.emitClose(0);
   }
 };
 

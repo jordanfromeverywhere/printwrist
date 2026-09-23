@@ -151,3 +151,22 @@ test('constructor failure reports network error then close', function () {
   c.connect();
   assert.deepStrictEqual(events, ['network', 'close']);
 });
+
+test('fail while CLOSING yields exactly one close', function () {
+  var events = [];
+  var c = client({onError: function (k, d) { events.push(k); }, onClose: function (code, byUs) { events.push('close'); }});
+  var ws = FakeWS.last;
+  ws.readyState = 2;
+  ws.onerror();
+  ws.onclose({code: 1006});
+  assert.deepStrictEqual(events, ['network', 'close']);
+});
+
+test('fail after CLOSED yields exactly one close', function () {
+  var events = [];
+  var c = client({onError: function (k, d) { events.push(k); }, onClose: function (code, byUs) { events.push('close'); }});
+  var ws = FakeWS.last;
+  ws.readyState = 3;
+  ws.onerror();
+  assert.deepStrictEqual(events, ['network', 'close']);
+});
