@@ -58,6 +58,16 @@ test('CONNACK 0 calls onConnect; CONNACK 5 is an auth error and closes', functio
   assert.ok(ws.closed);
 });
 
+test('CONNACK 4 is also an auth error', function () {
+  var errs = [];
+  client({onError: function (k, d) { errs.push(k); }, onClose: function (code, byUs) { errs.push('close'); }});
+  var ws = FakeWS.last;
+  open(ws);
+  frame(ws, [0x20, 2, 0, 4]);
+  assert.deepStrictEqual(errs, ['auth', 'close']);
+  assert.ok(ws.closed);
+});
+
 test('subscribe and publish encode correctly; publish needs an open socket', function () {
   var c = client();
   assert.strictEqual(c.publish('t', 'x'), false);
@@ -102,8 +112,20 @@ test('string frames (latin1) are accepted', function () {
   assert.strictEqual(got, 'ok');
 });
 
+test('inbound qos 1 PUBLISH skips the packet id', function () {
+  var got = [];
+  client({onMessage: function (t, p) { got.push([t, p]); }});
+  var ws = FakeWS.last;
+  open(ws);
+  var t = U.utf8Encode('t'), p = U.utf8Encode('hi');
+  var body = [t.length >> 8, t.length & 255].concat(t, [0, 7], p);
+  var pkt = [0x32].concat(U.encodeLength(body.length), body);
+  frame(ws, pkt);
+  assert.deepStrictEqual(got, [['t', 'hi']]);
+});
+
 test('utf8 round trip', function () {
-  var s = 'cafe ✓ ☺';
+  var s = 'café ✓ 😀';
   var b = U.utf8Encode(s);
   assert.strictEqual(U.utf8Decode(b, 0, b.length), s);
   assert.deepStrictEqual(U.encodeLength(321), [0xC1, 0x02]);
