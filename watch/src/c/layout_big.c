@@ -2,6 +2,14 @@
 #include "ui_common.h"
 #include "format.h"
 
+static void grid_cell(GContext *ctx, GRect cell, IconId icon, const char *value) {
+  icon_draw(ctx, icon, GPoint(cell.origin.x, cell.origin.y + 6), GColorLightGray);
+  graphics_context_set_text_color(ctx, GColorWhite);
+  graphics_draw_text(ctx, value, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                     GRect(cell.origin.x + 18, cell.origin.y - 2, cell.size.w - 18, 22),
+                     GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+}
+
 void layout_big_draw(GContext *ctx, GRect b, const PrintState *s) {
   int x = b.origin.x + 12, w = b.size.w - 24;
   ui_draw_stage(ctx, GRect(x, b.origin.y + 4, w, 18), s->stage, GTextAlignmentLeft);
@@ -27,8 +35,8 @@ void layout_big_draw(GContext *ctx, GRect b, const PrintState *s) {
   format_temp(s->chamber, cha, sizeof cha);
   snprintf(lay, sizeof lay, "%d/%d", s->layer, s->total_layers);
   int y = b.origin.y + 116, half = w / 2;
-  ui_draw_row(ctx, GRect(x, y, half - 4, 24), ICON_NOZZLE, GColorLightGray, "", noz);
-  ui_draw_row(ctx, GRect(x + half + 4, y, half - 4, 24), ICON_BED, GColorLightGray, "", bed);
-  ui_draw_row(ctx, GRect(x, y + 26, half - 4, 24), ICON_CHAMBER, GColorLightGray, "", cha);
-  ui_draw_row(ctx, GRect(x + half + 4, y + 26, half - 4, 24), ICON_LAYERS, GColorLightGray, "", lay);
+  grid_cell(ctx, GRect(x, y, half - 4, 24), ICON_NOZZLE, noz);
+  grid_cell(ctx, GRect(x + half + 4, y, half - 4, 24), ICON_BED, bed);
+  grid_cell(ctx, GRect(x, y + 26, half - 4, 24), ICON_CHAMBER, cha);
+  grid_cell(ctx, GRect(x + half + 4, y + 26, half - 4, 24), ICON_LAYERS, lay);
 }
