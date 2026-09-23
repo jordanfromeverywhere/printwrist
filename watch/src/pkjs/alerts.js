@@ -4,6 +4,14 @@ function detectAlert(prev, next) {
   return null;
 }
 
+// An 'offline' reading is a dropped report, not a real stage change. Don't let
+// it overwrite lastStage (so the next real reading diffs against the last
+// known real stage) and never alert on the transition into or out of it.
+function nextAlertState(lastStage, stage) {
+  if (stage === 'offline') return {kind: null, lastStage: lastStage};
+  return {kind: detectAlert(lastStage, stage), lastStage: stage};
+}
+
 function toMin(t) { var p = t.split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); }
 
 function inQuietHours(date, quiet) {
@@ -24,5 +32,5 @@ function nextPollDelayMs(status) {
   return status && status.stage === 'printing' && status.progress >= 98 ? 10000 : 30000;
 }
 
-module.exports = {detectAlert: detectAlert, inQuietHours: inQuietHours, shouldVibrate: shouldVibrate,
-                  alertEnabled: alertEnabled, nextPollDelayMs: nextPollDelayMs};
+module.exports = {detectAlert: detectAlert, nextAlertState: nextAlertState, inQuietHours: inQuietHours,
+                  shouldVibrate: shouldVibrate, alertEnabled: alertEnabled, nextPollDelayMs: nextPollDelayMs};

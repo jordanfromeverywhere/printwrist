@@ -14,11 +14,13 @@ var PRINTER_KEY = 'pw_printer';  // {serial, name}
 
 var settings = S.load(localStorage);
 var lastStage = null, pollTimer = null, conn = C.CONN.connecting, notice = '', printers = [], reconnectAlerted = false;
+var authFailures = 0;
 var messenger = new Messenger(function (msg, ok, fail) { Pebble.sendAppMessage(msg, ok, fail); });
 
 function getJSON(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
 function setJSON(k, v) { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }
 function printer() { return getJSON(PRINTER_KEY) || {}; }
+function merge(a, b) { var out = {}, k; for (k in a) out[k] = a[k]; for (k in b) out[k] = b[k]; return out; }
 
 function setConn(c) {
   conn = c;
@@ -59,25 +61,31 @@ function poll() {
     if (!token) return signedOut(false);
     relay.fetchStatus(http, S.relayBase(settings), token, p.serial, function (err, status) {
       if (err && err.kind === 'auth') {
-        return auth.refresh(http, (getJSON(AUTH_KEY) || {}).refresh, function (r) {
-          if (r.state !== 'ok') return signedOut(true);
-          var a = getJSON(AUTH_KEY) || {};
-          setJSON(AUTH_KEY, {token: r.token, refresh: r.refresh || a.refresh, expiresAt: r.expiresAt, email: a.email});
-          schedule(1000);
-        });
+        authFailures++;
+        if (authFailures < 2) {
+          return auth.refresh(http, (getJSON(AUTH_KEY) || {}).refresh, function (r) {
+            if (r.state !== 'ok') return schedule(30000);
+            authFailures = 0;
+            var a = getJSON(AUTH_KEY) || {};
+            setJSON(AUTH_KEY, {token: r.token, refresh: r.refresh || a.refresh, expiresAt: r.expiresAt, email: a.email});
+            schedule(1000);
+          });
+        }
+        return signedOut(true);
       }
       if (err) {
         if (err.kind !== 'rate' && conn !== C.CONN.relayDown) setConn(C.CONN.relayDown);
         return schedule(30000);
       }
+      authFailures = 0;
       if (conn !== C.CONN.ok) setConn(C.CONN.ok);
-      var msg = P.statusToMessage(status);
-      var kind = A.detectAlert(lastStage, status.stage);
-      if (kind && A.alertEnabled(kind, settings)) {
-        msg.ALERT_KIND = C.ALERT_CODES[kind];
-        msg.VIBRATE = A.shouldVibrate(kind, new Date(), settings) ? 1 : 0;
+      var msg = merge(P.configMessage(settings, conn, printer().name || ''), P.statusToMessage(status));
+      var next = A.nextAlertState(lastStage, status.stage);
+      if (next.kind && A.alertEnabled(next.kind, settings)) {
+        msg.ALERT_KIND = C.ALERT_CODES[next.kind];
+        msg.VIBRATE = A.shouldVibrate(next.kind, new Date(), settings) ? 1 : 0;
       }
-      lastStage = status.stage;
+      lastStage = next.lastStage;
       messenger.push(msg);
       schedule(A.nextPollDelayMs(status));
     });
@@ -101,17 +109,22 @@ function ensurePrinter() {
   });
 }
 
-function onLoginResult(r, email) {
+function onLoginResult(r, email, isCodeAttempt) {
   if (r.state === 'ok') {
     setJSON(PENDING_KEY, null);
     setJSON(AUTH_KEY, {token: r.token, refresh: r.refresh, expiresAt: r.expiresAt, email: email});
     notice = '';
     reconnectAlerted = false;
+    authFailures = 0;
     setConn(C.CONN.connecting);
     return ensurePrinter();
   }
   if (r.state === 'need_code') {
-    return auth.sendCode(http, email, function () {
+    return auth.sendCode(http, email, function (ok) {
+      if (!ok) {
+        notice = "Couldn't send the code email. Try signing in again.";
+        return setConn(C.CONN.needLogin);
+      }
       setJSON(PENDING_KEY, {email: email});
       notice = '';
       setConn(C.CONN.needCode);
@@ -120,6 +133,10 @@ function onLoginResult(r, email) {
   if (r.state === 'tfa_unsupported') {
     notice = "Accounts that use an authenticator app aren't supported yet.";
     return setConn(C.CONN.tfaUnsupported);
+  }
+  if (isCodeAttempt) {
+    notice = "That code didn't work. Check the latest email or start over.";
+    return setConn(C.CONN.needCode);
   }
   notice = r.message || 'Sign in failed.';
   setConn(C.CONN.needLogin);
@@ -133,20 +150,25 @@ function configState() {
 }
 
 Pebble.addEventListener('showConfiguration', function () {
-  Pebble.openURL(S.relayBase(settings) + '/config/#' + encodeURIComponent(JSON.stringify(configState())));
+  Pebble.openURL(C.DEFAULT_RELAY + '/config/#' + encodeURIComponent(JSON.stringify(configState())));
 });
 
 Pebble.addEventListener('webviewclosed', function (e) {
   var r;
   try { r = JSON.parse(decodeURIComponent(e.response || '')); } catch (err) { return; }
   if (!r || !r.action) return;
-  if (r.action === 'login') return auth.login(http, r.email, r.password, function (res) { onLoginResult(res, r.email); });
+  if (r.action === 'login') return auth.login(http, r.email, r.password, function (res) { onLoginResult(res, r.email, false); });
   if (r.action === 'code') {
     var pend = getJSON(PENDING_KEY);
     if (!pend) return setConn(C.CONN.needLogin);
-    return auth.loginWithCode(http, pend.email, r.code, function (res) { onLoginResult(res, pend.email); });
+    return auth.loginWithCode(http, pend.email, r.code, function (res) { onLoginResult(res, pend.email, true); });
   }
-  if (r.action === 'signout') { setJSON(PRINTER_KEY, null); return signedOut(false); }
+  if (r.action === 'signout') {
+    setJSON(PRINTER_KEY, null);
+    setJSON(PENDING_KEY, null);
+    notice = '';
+    return signedOut(false);
+  }
   if (r.action === 'save') {
     settings = S.merge(r.settings);
     S.save(localStorage, settings);
@@ -160,10 +182,19 @@ Pebble.addEventListener('webviewclosed', function (e) {
 Pebble.addEventListener('appmessage', function (e) {
   var code = e.payload.CONTROL_ACTION;
   var action = C.CONTROL_ACTIONS[code];
-  if (!action || !settings.controlEnabled) return;
+  if (!action || !settings.controlEnabled) {
+    return messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed});
+  }
   withToken(function (token) {
-    if (!token) return signedOut(false);
-    relay.sendControl(http, S.relayBase(settings), token, printer().serial, action, function (err, result) {
+    if (!token) {
+      messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed});
+      return signedOut(false);
+    }
+    var serial = printer().serial;
+    if (!serial) {
+      return messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed});
+    }
+    relay.sendControl(http, S.relayBase(settings), token, serial, action, function (err, result) {
       var out = err ? C.CONTROL_RESULT.failed
         : (result === 'rejected' ? C.CONTROL_RESULT.rejected : C.CONTROL_RESULT.ok);
       messenger.push({CONTROL_RESULT: out});

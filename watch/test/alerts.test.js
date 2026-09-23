@@ -54,3 +54,22 @@ test('settings defaults and relay base', function () {
   assert.strictEqual(S.relayBase(s), require('../src/pkjs/constants.js').DEFAULT_RELAY);
   assert.strictEqual(S.relayBase(S.merge({relayUrl: 'https://mine.example/'})), 'https://mine.example');
 });
+
+test('nextAlertState ignores offline blips', function () {
+  assert.deepStrictEqual(A.nextAlertState(null, 'printing'), {kind: null, lastStage: 'printing'});
+  assert.deepStrictEqual(A.nextAlertState('printing', 'offline'), {kind: null, lastStage: 'printing'});
+  assert.deepStrictEqual(A.nextAlertState('printing', 'printing'), {kind: null, lastStage: 'printing'});
+  var s1 = A.nextAlertState('printing', 'done');
+  assert.deepStrictEqual(s1, {kind: 'done', lastStage: 'done'});
+  var s2 = A.nextAlertState(s1.lastStage, 'offline');
+  assert.deepStrictEqual(s2, {kind: null, lastStage: 'done'});
+  var s3 = A.nextAlertState(s2.lastStage, 'done');
+  assert.deepStrictEqual(s3, {kind: null, lastStage: 'done'});
+});
+
+test('settings.merge rejects non-https relayUrl', function () {
+  assert.strictEqual(S.merge({relayUrl: 'http://x'}).relayUrl, '');
+  assert.strictEqual(S.merge({relayUrl: 'https://mine.example/'}).relayUrl, 'https://mine.example/');
+  assert.strictEqual(S.merge({relayUrl: 'junk'}).relayUrl, '');
+  assert.strictEqual(S.merge({relayUrl: ''}).relayUrl, '');
+});

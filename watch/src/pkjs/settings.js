@@ -18,7 +18,10 @@ function merge(s) {
     if (validTime(s.quiet.start)) out.quiet.start = s.quiet.start;
     if (validTime(s.quiet.end)) out.quiet.end = s.quiet.end;
   }
-  if (typeof s.relayUrl === 'string') out.relayUrl = s.relayUrl.trim();
+  if (typeof s.relayUrl === 'string') {
+    var trimmed = s.relayUrl.trim();
+    out.relayUrl = trimmed === '' || /^https:\/\/[^\s]+$/.test(trimmed) ? trimmed : '';
+  }
   return out;
 }
 
