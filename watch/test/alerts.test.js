@@ -1,0 +1,56 @@
+var test = require('node:test');
+var assert = require('node:assert');
+var A = require('../src/pkjs/alerts.js');
+var S = require('../src/pkjs/settings.js');
+
+test('detectAlert transitions', function () {
+  assert.strictEqual(A.detectAlert(null, 'done'), null);
+  assert.strictEqual(A.detectAlert('printing', 'printing'), null);
+  assert.strictEqual(A.detectAlert('printing', 'done'), 'done');
+  assert.strictEqual(A.detectAlert('printing', 'failed'), 'failed');
+  assert.strictEqual(A.detectAlert('printing', 'paused'), 'paused');
+  assert.strictEqual(A.detectAlert('paused', 'printing'), null);
+  assert.strictEqual(A.detectAlert('printing', 'offline'), null);
+});
+
+function at(h, m) { var d = new Date(2026, 8, 23, h, m); return d; }
+
+test('quiet hours across midnight and same-day', function () {
+  var q = {on: true, start: '22:00', end: '07:00'};
+  assert.ok(A.inQuietHours(at(23, 0), q));
+  assert.ok(A.inQuietHours(at(6, 59), q));
+  assert.ok(!A.inQuietHours(at(7, 0), q));
+  assert.ok(!A.inQuietHours(at(12, 0), q));
+  assert.ok(A.inQuietHours(at(13, 0), {on: true, start: '12:00', end: '14:00'}));
+  assert.ok(!A.inQuietHours(at(23, 0), {on: false, start: '22:00', end: '07:00'}));
+  assert.ok(!A.inQuietHours(at(23, 0), {on: true, start: '22:00', end: '22:00'}));
+});
+
+test('failed and reconnect always vibrate', function () {
+  var s = S.merge({quiet: {on: true, start: '00:00', end: '23:59'}});
+  assert.ok(A.shouldVibrate('failed', at(3, 0), s));
+  assert.ok(A.shouldVibrate('reconnect', at(3, 0), s));
+  assert.ok(!A.shouldVibrate('done', at(3, 0), s));
+  assert.ok(!A.shouldVibrate('paused', at(3, 0), s));
+});
+
+test('alertEnabled honors settings, reconnect always on', function () {
+  var s = S.merge({alerts: {done: false, failed: true, paused: true}});
+  assert.ok(!A.alertEnabled('done', s));
+  assert.ok(A.alertEnabled('reconnect', S.merge({alerts: {done: false, failed: false, paused: false}})));
+});
+
+test('poll delay speeds up near the end', function () {
+  assert.strictEqual(A.nextPollDelayMs({stage: 'printing', progress: 97}), 30000);
+  assert.strictEqual(A.nextPollDelayMs({stage: 'printing', progress: 98}), 10000);
+  assert.strictEqual(A.nextPollDelayMs({stage: 'done', progress: 100}), 30000);
+  assert.strictEqual(A.nextPollDelayMs(null), 30000);
+});
+
+test('settings defaults and relay base', function () {
+  var s = S.merge(null);
+  assert.strictEqual(s.layout, 'arc');
+  assert.strictEqual(s.controlEnabled, false);
+  assert.strictEqual(S.relayBase(s), require('../src/pkjs/constants.js').DEFAULT_RELAY);
+  assert.strictEqual(S.relayBase(S.merge({relayUrl: 'https://mine.example/'})), 'https://mine.example');
+});
