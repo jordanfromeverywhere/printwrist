@@ -11,4 +11,13 @@ function listDevices(http, token, cb) {
     cb(null, list);
   });
 }
-module.exports = {listDevices: listDevices};
+
+function getUsername(http, token, cb) {
+  http('GET', API + '/v1/user-service/my/profile', null, token, function (err, res) {
+    if (err) return cb({kind: 'network'});
+    if (res.status === 401) return cb({kind: 'auth'});
+    if (res.status !== 200 || !res.json || !res.json.uid) return cb({kind: 'server'});
+    cb(null, 'u_' + res.json.uid);
+  });
+}
+module.exports = {listDevices: listDevices, getUsername: getUsername};
