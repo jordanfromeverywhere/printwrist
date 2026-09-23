@@ -1,0 +1,21 @@
+{
+  "name": "printwrist",
+  "author": "Jordan",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "PrintWrist",
+    "uuid": "eeef99ea-1eac-4c4d-954f-915b1d4159c7",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": ["emery"],
+    "watchapp": {"watchface": false},
+    "capabilities": ["configurable"],
+    "messageKeys": ["STAGE", "PROGRESS", "REMAINING_MIN", "NOZZLE", "BED", "CHAMBER", "LAYER",
+      "TOTAL_LAYERS", "JOB", "AMS_LABEL", "AMS_COLOR", "ERROR_CODE", "ALERT_KIND", "VIBRATE",
+      "LAYOUT", "CONTROL_ENABLED", "CONN_STATE", "PRINTER_NAME", "CONTROL_ACTION", "CONTROL_RESULT"],
+    "resources": {"media": []}
+  }
+}
