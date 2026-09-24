@@ -57,3 +57,16 @@ cd watch && node --test test/*.test.js
 ## Security Warning
 
 Never sign in through `pebble emu-app-config`: the SDK helper logs the settings page's returned data, including your password.
+
+## v1.0.2 acceptance (device test, 2026-09-23)
+
+| Check | Result |
+|---|---|
+| Sign in without leaving the app, one code email | Pass |
+| Up/Down screens (Status, Details, Filament) | Pass |
+| Select menu, chamber light on/off | Pass (label lag fixed in v1.0.3, be8f3a9) |
+| Refresh | Pass |
+| Print speed | Not yet tested |
+| Pause with confirm, resume | Not yet tested |
+| Stop (throwaway print) | Not yet tested |
+| Airplane-mode recovery | Not yet tested |
