@@ -227,12 +227,13 @@ Pebble.addEventListener('appmessage', function (e) {
     return;
   }
   if (p.CONTROL_ACTION === undefined) return;
-  var action = C.CONTROL_ACTIONS[p.CONTROL_ACTION];
-  if (!action || !live) return messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed});
+  var code = p.CONTROL_ACTION;
+  var action = C.CONTROL_ACTIONS[code];
+  if (!action || !live) return messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed, CONTROL_ACTION: code});
   live.command(action, function (result) {
     var out = result === 'rejected' ? C.CONTROL_RESULT.rejected
       : (result === 'offline' ? C.CONTROL_RESULT.failed : C.CONTROL_RESULT.ok);
-    messenger.push({CONTROL_RESULT: out});
+    messenger.push({CONTROL_RESULT: out, CONTROL_ACTION: code});
   });
 });
 

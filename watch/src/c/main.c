@@ -29,8 +29,8 @@ static const char *control_banner(int action, int result) {
   }
 }
 
-static void on_control(int result) {
-  status_window_toast(control_banner(messaging_last_action(), result));
+static void on_control(int result, int action) {
+  status_window_toast(control_banner(action, result));
   vibes_short_pulse();
 }
 

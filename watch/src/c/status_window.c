@@ -10,6 +10,8 @@ static Layer *s_canvas;
 static char s_toast[40];
 static AppTimer *s_toast_timer;
 static int s_page;
+static char s_pending_toast[40];
+static bool s_has_pending_toast;
 
 static const char *conn_banner(ConnState c) {
   switch (c) {
@@ -73,12 +75,25 @@ static void draw(Layer *layer, GContext *ctx) {
 
 static void clear_toast(void *ctx) { s_toast[0] = '\0'; s_toast_timer = NULL; layer_mark_dirty(s_canvas); }
 
-void status_window_toast(const char *text) {
+static void show_toast_now(const char *text) {
   strncpy(s_toast, text, sizeof s_toast - 1);
   s_toast[sizeof s_toast - 1] = '\0';
   if (s_toast_timer) app_timer_cancel(s_toast_timer);
   s_toast_timer = app_timer_register(3000, clear_toast, NULL);
   if (s_canvas) layer_mark_dirty(s_canvas);
+}
+
+void status_window_toast(const char *text) {
+  /* If the status window isn't on top (an ActionMenu, confirm or code window is), its 3s timer
+     would run unseen and the banner could expire before it's ever shown. Hold it and show it (and
+     start the timer) once the status window is back on top; see `appear()`. */
+  if (window_stack_get_top_window() != s_window) {
+    strncpy(s_pending_toast, text, sizeof s_pending_toast - 1);
+    s_pending_toast[sizeof s_pending_toast - 1] = '\0';
+    s_has_pending_toast = true;
+    return;
+  }
+  show_toast_now(text);
 }
 
 static void select_click(ClickRecognizerRef r, void *ctx) {
@@ -118,11 +133,18 @@ static void unload(Window *w) {
   status_bar_layer_destroy(s_bar);
 }
 
+static void appear(Window *w) {
+  if (s_has_pending_toast) {
+    s_has_pending_toast = false;
+    show_toast_now(s_pending_toast);
+  }
+}
+
 Window *status_window_create(void) {
   s_window = window_create();
   window_set_background_color(s_window, GColorBlack);
   window_set_click_config_provider(s_window, click_config);
-  window_set_window_handlers(s_window, (WindowHandlers){.load = load, .unload = unload});
+  window_set_window_handlers(s_window, (WindowHandlers){.load = load, .unload = unload, .appear = appear});
   return s_window;
 }
 

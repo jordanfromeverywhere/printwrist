@@ -74,7 +74,13 @@ static void inbox(DictionaryIterator *it, void *ctx) {
     s_on_alert((AlertKind)alert->value->int32, vib && vib->value->int32 == 1);
   }
   Tuple *cr = dict_find(it, MESSAGE_KEY_CONTROL_RESULT);
-  if (cr && s_on_control) s_on_control((int)cr->value->int32);
+  if (cr && s_on_control) {
+    /* The phone echoes CONTROL_ACTION alongside CONTROL_RESULT so overlapping actions can't be
+       mis-attributed; fall back to our own last-sent record for older phone builds that don't. */
+    Tuple *ca = dict_find(it, MESSAGE_KEY_CONTROL_ACTION);
+    int action = ca ? (int)ca->value->int32 : s_last_action;
+    s_on_control((int)cr->value->int32, action);
+  }
 }
 
 void messaging_init(StateChangedFn on_state, AlertFn on_alert, ControlResultFn on_control) {
@@ -99,5 +105,3 @@ bool messaging_send_code(const char *code) {
   dict_write_cstring(out, MESSAGE_KEY_CODE, code);
   return app_message_outbox_send() == APP_MSG_OK;
 }
-
-int messaging_last_action(void) { return s_last_action; }

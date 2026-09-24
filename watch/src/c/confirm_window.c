@@ -73,6 +73,7 @@ static void unload(Window *w) {
 }
 
 void confirm_window_open(const char *question, const char *detail, int action) {
+  if (s_win) return;
   strncpy(s_question, question, sizeof s_question - 1); s_question[sizeof s_question - 1] = '\0';
   strncpy(s_detail, detail, sizeof s_detail - 1); s_detail[sizeof s_detail - 1] = '\0';
   s_action = action;

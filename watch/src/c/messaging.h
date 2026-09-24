@@ -3,7 +3,9 @@
 
 typedef void (*StateChangedFn)(void);
 typedef void (*AlertFn)(AlertKind kind, bool vibrate);
-typedef void (*ControlResultFn)(int result);
+/* `action` is the CONTROL_ACTION the phone echoed back alongside this result (falls back to the
+   watch's own record of the last action sent if an older phone build didn't echo one). */
+typedef void (*ControlResultFn)(int result, int action);
 
 typedef enum {
   CONTROL_PAUSE = 1, CONTROL_RESUME = 2, CONTROL_STOP = 3,
@@ -16,4 +18,3 @@ typedef enum { CONTROL_RESULT_OK = 0, CONTROL_RESULT_REJECTED = 1, CONTROL_RESUL
 void messaging_init(StateChangedFn on_state, AlertFn on_alert, ControlResultFn on_control);
 bool messaging_send_control(int action);
 bool messaging_send_code(const char *code);
-int messaging_last_action(void);
