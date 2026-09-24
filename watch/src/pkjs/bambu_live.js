@@ -31,11 +31,26 @@ function buildCommand(action, seq) {
   if (action === 'light_on' || action === 'light_off') {
     return {body: {system: {sequence_id: seq, command: 'ledctrl', led_node: 'chamber_light',
                             led_mode: action === 'light_on' ? 'on' : 'off', led_on_time: 500,
-                            led_off_time: 500, loop_times: 0, interval_time: 0}}, reply: 'ledctrl'};
+                            led_off_time: 500, loop_times: 0, interval_time: 0}}, reply: 'ledctrl',
+            apply: function (p) { setLight(p, action === 'light_on' ? 'on' : 'off'); }};
   }
   m = /^speed_([1-4])$/.exec(action);
-  if (m) return {body: {print: {sequence_id: seq, command: 'print_speed', param: m[1]}}, reply: 'print_speed'};
+  if (m) {
+    return {body: {print: {sequence_id: seq, command: 'print_speed', param: m[1]}}, reply: 'print_speed',
+            apply: function (p) { p.spd_lvl = Number(m[1]); }};
+  }
   return null;
+}
+
+// The printer confirms a command before its next report shows the change, so a confirmed
+// command patches the cached report and the watch sees the new state right away.
+function setLight(p, mode) {
+  var l = Array.isArray(p.lights_report) ? p.lights_report.slice() : [], i;
+  for (i = 0; i < l.length; i++) {
+    if (l[i] && l[i].node === 'chamber_light') { l[i] = {node: 'chamber_light', mode: mode}; break; }
+  }
+  if (i === l.length) l.push({node: 'chamber_light', mode: mode});
+  p.lights_report = l;
 }
 
 function Live(opts, handlers) {
@@ -204,17 +219,23 @@ Live.prototype.command = function (action, cb) {
   cmd = buildCommand(action, seq);
   if (!cmd) { cb('rejected'); return; }
   if (!this.client.publish('device/' + this.o.serial + '/request', JSON.stringify(cmd.body))) { cb('offline'); return; }
-  entry = {action: cmd.reply, cb: cb};
+  entry = {action: cmd.reply, apply: cmd.apply, cb: cb};
   entry.timer = this.timers.set(function () { delete self.pending[seq]; cb('unconfirmed'); }, COMMAND_MS);
   this.pending[seq] = entry;
 };
 
 Live.prototype.resolvePending = function (p) {
-  var seq = p.sequence_id === undefined ? null : String(p.sequence_id), e = seq !== null ? this.pending[seq] : null;
+  var seq = p.sequence_id === undefined ? null : String(p.sequence_id), e = seq !== null ? this.pending[seq] : null, r;
   if (!e || p.command !== e.action) return;
   this.timers.clear(e.timer);
   delete this.pending[seq];
-  e.cb(classifyReply(p));
+  r = classifyReply(p);
+  if (r === 'ok' && e.apply && this.hasState) {
+    if (!this.report.print) this.report.print = {};
+    e.apply(this.report.print);
+    this.emit(normalize(this.report));
+  }
+  e.cb(r);
 };
 
 Live.prototype.failPending = function (result) {

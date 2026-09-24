@@ -182,3 +182,34 @@ test('light, speed and refresh commands', function () {
   s.live.command('launch_rocket', function (r) { out.push(r); });
   assert.deepStrictEqual(out, ['ok', 'ok', 'ok', 'rejected']);
 });
+
+test('a confirmed light or speed change reaches the watch at once, inside the throttle window', function () {
+  var s = setup(), c = clients[0], out = [];
+  c.h.onConnect();
+  msg(c, {gcode_state: 'RUNNING', spd_lvl: 2,
+          lights_report: [{node: 'chamber_light', mode: 'off'}, {node: 'work_light', mode: 'flashing'}]});
+  assert.strictEqual(s.statuses.length, 1);
+  s.timers.advance(1000);
+  s.live.command('light_on', function (r) { out.push(r); });
+  var light = c.pubs[1][1].system;
+  c.h.onMessage('device/S1/report', JSON.stringify({system: {command: 'ledctrl', sequence_id: light.sequence_id, result: 'success'}}));
+  assert.strictEqual(s.statuses.length, 2);
+  assert.strictEqual(s.statuses[1].light, 'on');
+  assert.deepStrictEqual(s.live.report.print.lights_report[1], {node: 'work_light', mode: 'flashing'});
+  s.live.command('speed_4', function (r) { out.push(r); });
+  msg(c, {command: 'print_speed', sequence_id: c.pubs[2][1].print.sequence_id, result: 'success'});
+  assert.strictEqual(s.statuses.length, 3);
+  assert.strictEqual(s.live.report.print.spd_lvl, 4);
+  s.live.command('light_off', function (r) { out.push(r); });
+  c.h.onMessage('device/S1/report', JSON.stringify({system: {command: 'ledctrl', sequence_id: c.pubs[3][1].system.sequence_id, result: 'failed'}}));
+  assert.strictEqual(s.statuses[s.statuses.length - 1].light, 'on');
+  assert.deepStrictEqual(out, ['ok', 'ok', 'rejected']);
+});
+
+test('a command with no reply reports unconfirmed', function () {
+  var s = setup(), c = clients[0], out = [];
+  c.h.onConnect();
+  s.live.command('light_on', function (r) { out.push(r); });
+  s.timers.advance(5000);
+  assert.deepStrictEqual(out, ['unconfirmed']);
+});

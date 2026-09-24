@@ -5,6 +5,6 @@ module.exports = {
   LAYOUT_CODES: {arc: 0, big: 1, dense: 2},
   CONN: {ok: 0, connecting: 1, needLogin: 2, needCode: 3, relayDown: 4, tfaUnsupported: 5, noPrinter: 6},
   CONTROL_ACTIONS: {1: 'pause', 2: 'resume', 3: 'stop', 4: 'light_on', 5: 'light_off', 6: 'refresh', 7: 'speed_1', 8: 'speed_2', 9: 'speed_3', 10: 'speed_4'},
-  CONTROL_RESULT: {ok: 0, rejected: 1, failed: 2},
+  CONTROL_RESULT: {ok: 0, rejected: 1, failed: 2, unconfirmed: 3},
   TEMP_NONE: -1000
 };

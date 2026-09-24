@@ -14,6 +14,7 @@ static void on_alert(AlertKind kind, bool vibrate) { alert_window_show(kind, vib
 static const char *control_banner(int action, int result) {
   if (result == CONTROL_RESULT_REJECTED) return "Printer refused";
   if (result == CONTROL_RESULT_FAILED) return "Couldn't send";
+  if (result == CONTROL_RESULT_UNCONFIRMED) return "Sent, no reply yet";
   switch (action) {
     case CONTROL_PAUSE: return "Paused";
     case CONTROL_RESUME: return "Resumed";

@@ -239,8 +239,8 @@ Pebble.addEventListener('appmessage', function (e) {
   var action = C.CONTROL_ACTIONS[code];
   if (!action || !live) return messenger.push({CONTROL_RESULT: C.CONTROL_RESULT.failed, CONTROL_ACTION: code});
   live.command(action, function (result) {
-    var out = result === 'rejected' ? C.CONTROL_RESULT.rejected
-      : (result === 'offline' ? C.CONTROL_RESULT.failed : C.CONTROL_RESULT.ok);
+    var out = C.CONTROL_RESULT[result === 'offline' ? 'failed' : result];
+    if (out === undefined) out = C.CONTROL_RESULT.ok;
     messenger.push({CONTROL_RESULT: out, CONTROL_ACTION: code});
   });
 });
