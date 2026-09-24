@@ -65,7 +65,7 @@ Never sign in through `pebble emu-app-config`: the SDK helper logs the settings 
 | Sign in without leaving the app, one code email | Pass |
 | Up/Down screens (Status, Details, Filament) | Pass |
 | Select menu, chamber light on/off | Pass (label lag fixed in v1.0.3, be8f3a9) |
-| Refresh | Pass |
+| Refresh | Not yet tested |
 | Print speed | Not yet tested |
 | Pause with confirm, resume | Not yet tested |
 | Stop (throwaway print) | Not yet tested |
