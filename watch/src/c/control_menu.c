@@ -44,12 +44,15 @@ static void did_close(ActionMenu *menu, const ActionMenuItem *item, void *ctx) {
 
 void control_menu_open(Stage stage) {
   if (s_root) return;
-  if (stage != STAGE_PRINTING && stage != STAGE_PAUSED) return;
 
   s_root = action_menu_level_create(5);
-  if (stage == STAGE_PRINTING) action_menu_level_add_action(s_root, "Pause", perform_confirm, (void *)(uintptr_t)CONTROL_PAUSE);
-  else action_menu_level_add_action(s_root, "Resume", perform_direct, (void *)(uintptr_t)CONTROL_RESUME);
-  action_menu_level_add_action(s_root, "Stop print", perform_confirm, (void *)(uintptr_t)CONTROL_STOP);
+  if (stage == STAGE_PRINTING) {
+    action_menu_level_add_action(s_root, "Pause", perform_confirm, (void *)(uintptr_t)CONTROL_PAUSE);
+    action_menu_level_add_action(s_root, "Stop print", perform_confirm, (void *)(uintptr_t)CONTROL_STOP);
+  } else if (stage == STAGE_PAUSED) {
+    action_menu_level_add_action(s_root, "Resume", perform_direct, (void *)(uintptr_t)CONTROL_RESUME);
+    action_menu_level_add_action(s_root, "Stop print", perform_confirm, (void *)(uintptr_t)CONTROL_STOP);
+  }
   bool light_on = g_state.light == 1;
   action_menu_level_add_action(s_root, light_on ? "Light off" : "Light on", perform_direct,
                                 (void *)(uintptr_t)(light_on ? CONTROL_LIGHT_OFF : CONTROL_LIGHT_ON));
