@@ -153,7 +153,11 @@ function onLoginResult(r, email) {
 
 function submitCode(code) {
   var pend = getJSON(PENDING_KEY);
-  if (!pend) return setConn(C.CONN.needLogin);
+  if (!pend) {
+    var tok = getJSON(AUTH_KEY);
+    if (tok && tok.token) return;
+    return setConn(C.CONN.needLogin);
+  }
   auth.loginWithCode(http, pend.email, code, function (res) {
     if (res.state === 'error') {
       notice = "That code didn't work. Check the latest email or start over.";
@@ -201,7 +205,11 @@ Pebble.addEventListener('webviewclosed', function (e) {
   }
   if (r.action === 'resend') {
     pend = getJSON(PENDING_KEY);
-    if (!pend) return setConn(C.CONN.needLogin);
+    if (!pend) {
+      var tok = getJSON(AUTH_KEY);
+      if (tok && tok.token) return;
+      return setConn(C.CONN.needLogin);
+    }
     return auth.sendCode(http, pend.email, function (sent) {
       notice = sent ? 'We sent a new code.' : "Couldn't send the code email. Try again in a minute.";
       showSettings();
