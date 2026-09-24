@@ -69,4 +69,4 @@ Never sign in through `pebble emu-app-config`: the SDK helper logs the settings 
 | Print speed | Refused by Bambu firmware (unsigned); removed from watch in v1.0.4 |
 | Pause with confirm, resume | Refused by Bambu firmware (unsigned); removed from watch in v1.0.4 |
 | Stop (throwaway print) | Removed from watch in v1.0.4 (same firmware gate) |
-| Airplane-mode recovery | Not yet tested |
+| Airplane-mode recovery | Pass |
