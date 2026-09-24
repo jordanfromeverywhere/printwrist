@@ -65,7 +65,7 @@ Never sign in through `pebble emu-app-config`: the SDK helper logs the settings 
 | Sign in without leaving the app, one code email | Pass |
 | Up/Down screens (Status, Details, Filament) | Pass |
 | Select menu, chamber light on/off | Pass (label lag fixed in v1.0.3, be8f3a9) |
-| Refresh | Pass (watch updates live during a print) |
+| Refresh | Not yet tested (live updates during a print confirmed) |
 | Print speed | Refused by Bambu firmware (unsigned); removed from watch in v1.0.4 |
 | Pause with confirm, resume | Refused by Bambu firmware (unsigned); removed from watch in v1.0.4 |
 | Stop (throwaway print) | Removed from watch in v1.0.4 (same firmware gate) |
