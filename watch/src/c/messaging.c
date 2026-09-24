@@ -1,5 +1,6 @@
 #include <pebble.h>
 #include "messaging.h"
+#include "status_window.h"
 
 PrintState g_state = {.stage = STAGE_OFFLINE, .nozzle = TEMP_NONE, .bed = TEMP_NONE,
                       .chamber = TEMP_NONE, .ams_color = -1, .conn = CONN_CONNECTING,
@@ -83,11 +84,17 @@ static void inbox(DictionaryIterator *it, void *ctx) {
   }
 }
 
+static void outbox_failed(DictionaryIterator *it, AppMessageResult reason, void *ctx) {
+  vibes_short_pulse();
+  status_window_toast("Couldn't send");
+}
+
 void messaging_init(StateChangedFn on_state, AlertFn on_alert, ControlResultFn on_control) {
   s_on_state = on_state;
   s_on_alert = on_alert;
   s_on_control = on_control;
   app_message_register_inbox_received(inbox);
+  app_message_register_outbox_failed(outbox_failed);
   app_message_open(1024, 128);
 }
 
