@@ -19,6 +19,8 @@
       "NOZZLE_TARGET", "BED_TARGET", "FAN_PART", "FAN_AUX", "FAN_CHAMBER", "SPEED_LEVEL", "LIGHT",
       "TRAY_ACTIVE", "TRAY0_TYPE", "TRAY1_TYPE", "TRAY2_TYPE", "TRAY3_TYPE", "TRAY0_COLOR", "TRAY1_COLOR",
       "TRAY2_COLOR", "TRAY3_COLOR", "EXT_TYPE", "EXT_COLOR", "CODE"],
-    "resources": {"media": []}
+    "resources": {"media": [
+      {"type": "bitmap", "name": "IMAGE_MENU_ICON", "file": "images/menu_icon.png", "menuIcon": true}
+    ]}
   }
 }
