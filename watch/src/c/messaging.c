@@ -12,6 +12,7 @@ PrintState g_state = {.stage = STAGE_OFFLINE, .nozzle = TEMP_NONE, .bed = TEMP_N
 static StateChangedFn s_on_state;
 static AlertFn s_on_alert;
 static ControlResultFn s_on_control;
+static int s_last_action;
 
 static void read_int(DictionaryIterator *it, uint32_t key, int *out) {
   Tuple *t = dict_find(it, key);
@@ -85,6 +86,7 @@ void messaging_init(StateChangedFn on_state, AlertFn on_alert, ControlResultFn o
 }
 
 bool messaging_send_control(int action) {
+  s_last_action = action;
   DictionaryIterator *out;
   if (app_message_outbox_begin(&out) != APP_MSG_OK) return false;
   dict_write_int32(out, MESSAGE_KEY_CONTROL_ACTION, action);
@@ -97,3 +99,5 @@ bool messaging_send_code(const char *code) {
   dict_write_cstring(out, MESSAGE_KEY_CODE, code);
   return app_message_outbox_send() == APP_MSG_OK;
 }
+
+int messaging_last_action(void) { return s_last_action; }
