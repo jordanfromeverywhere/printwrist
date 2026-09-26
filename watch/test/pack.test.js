@@ -56,3 +56,53 @@ test('statusToMessage AMS_UNITS: mixed units, empty trays, missing colour, 7-cha
 
   assert.strictEqual(P.statusToMessage({stage: 'printing', units: []}).AMS_UNITS, '');
 });
+
+test('statusToMessage AMS_UNITS: invalid colour (wrong length or non-hex) gives |TYPE,', function () {
+  var shortColour = P.statusToMessage({stage: 'printing', units: [
+    {kind: 'ams', active: null, trays: [{type: 'PLA', color: 'FF00'}, null, null, null]}]});
+  assert.strictEqual(shortColour.AMS_UNITS, 'A-|PLA,|||');
+
+  var nonHex = P.statusToMessage({stage: 'printing', units: [
+    {kind: 'ht', active: null, trays: [{type: 'PA', color: 'ZZZZZZ'}]}]});
+  assert.strictEqual(nonHex.AMS_UNITS, 'H-|PA,');
+
+  var lowercase = P.statusToMessage({stage: 'printing', units: [
+    {kind: 'ht', active: null, trays: [{type: 'PA', color: 'ff0000'}]}]});
+  assert.strictEqual(lowercase.AMS_UNITS, 'H-|PA,FF0000');
+});
+
+test('worst-case merged AppMessage (status + config + alert, 4 regular + 8 HT full units) fits the 2048 inbox', function () {
+  function byteSize(msg) {
+    var size = 1; // dictionary header
+    Object.keys(msg).forEach(function (k) {
+      var v = msg[k];
+      size += 7; // tuple header: key(4) + type(1) + length(2)
+      size += typeof v === 'string' ? Buffer.byteLength(v, 'utf8') + 1 : 4; // +NUL, else int32
+    });
+    return size;
+  }
+
+  function fullTray() { return {type: 'ABCDEFG', color: 'FF00FF'}; }
+  var units = [], i;
+  for (i = 0; i < 4; i++) units.push({kind: 'ams', active: 3, trays: [fullTray(), fullTray(), fullTray(), fullTray()]});
+  for (i = 0; i < 8; i++) units.push({kind: 'ht', active: 0, trays: [fullTray()]});
+
+  var status = {
+    stage: 'printing', progress: 100, remaining_min: 999999, nozzle: 999, bed: 999, chamber: 999,
+    layer: 999999, total_layers: 999999, job: 'a_job_name_much_longer_than_the_31_char_cap',
+    error_code: '0123-45678901234', ams: {slot: 'AMS4-4', type: 'ABCDEFG', color: 'FF00FF'},
+    nozzle_target: 999, bed_target: 999, fan_part: 100, fan_aux: 100, fan_chamber: 100,
+    speed: 4, light: 'on', units: units, ext_active: true, ext: {type: 'ABCDEFG', color: 'FF00FF'}
+  };
+  var msg = P.statusToMessage(status);
+  var config = P.configMessage(S.merge({layout: 'dense'}), 3, 'a_printer_name_much_longer_than_the_23_char_cap');
+
+  var merged = {}, k;
+  for (k in config) merged[k] = config[k];
+  for (k in msg) merged[k] = msg[k];
+  merged.ALERT_KIND = 1;
+  merged.VIBRATE = 1;
+
+  var size = byteSize(merged);
+  assert.ok(size < 2048, 'expected worst-case message under 2048 bytes, got ' + size);
+});

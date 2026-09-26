@@ -53,34 +53,62 @@ function feedTarget(now) {
   return null;
 }
 
-function findUnit(units, id) {
-  var i;
-  for (i = 0; i < (units || []).length; i++) { if (num(units[i].id) === id) return units[i]; }
-  return null;
-}
-
 function findTray(unit, slot) {
   var arr = (unit && unit.tray) || [], i;
   for (i = 0; i < arr.length; i++) { if (num(arr[i].id) === slot) return arr[i]; }
   return null;
 }
 
+// An HT unit has a single tray; use the one at tray id 0 if present, else whatever's first.
+function htTray(unit) {
+  var t = findTray(unit, 0);
+  if (t) return t;
+  var arr = (unit && unit.tray) || [];
+  return arr.length ? arr[0] : null;
+}
+
+// Buckets ams.ams[] into regular (id 0-3) and HT (id 128-135) units, each sorted by id, and
+// assigns `n` as the 1-based position within its own kind (per the design spec, not the raw id,
+// so e.g. a lone HT with id 129 is n=1 and regular ids 0 and 2 are n=1 and n=2). Regular units
+// come first, then HT units, regardless of their order in the source array. Shared by units()
+// and ams() so the per-unit numbering and the one-line feeding label always agree.
+function buildUnitList(p) {
+  var a = p.ams || {}, list = a.ams || [], regular = [], ht = [], i, u, id, out = [];
+  for (i = 0; i < list.length; i++) {
+    u = list[i];
+    id = num(u.id);
+    if (id === null) continue;
+    if (id >= 0 && id <= 3) regular.push({id: id, raw: u});
+    else if (id >= 128 && id <= 135) ht.push({id: id, raw: u});
+  }
+  regular.sort(function (x, y) { return x.id - y.id; });
+  ht.sort(function (x, y) { return x.id - y.id; });
+  for (i = 0; i < regular.length; i++) out.push({id: regular[i].id, kind: 'ams', n: i + 1, raw: regular[i].raw});
+  for (i = 0; i < ht.length; i++) out.push({id: ht[i].id, kind: 'ht', n: i + 1, raw: ht[i].raw});
+  return out;
+}
+
+function findByTarget(list, kind, id) {
+  var i;
+  for (i = 0; i < list.length; i++) { if (list[i].kind === kind && list[i].id === id) return list[i]; }
+  return null;
+}
+
 function ams(p) {
   var a = p.ams || {}, now = String(a.tray_now === undefined ? '255' : a.tray_now);
-  var target = feedTarget(now), tray, unit, t;
+  var target = feedTarget(now), tray, match, t;
   if (!target) return null;
   if (target.kind === 'ext') {
     tray = external(p);
     return {slot: 'Ext', type: tray.tray_type || '', color: color(tray.tray_color)};
   }
+  match = findByTarget(buildUnitList(p), target.kind, target.id);
   if (target.kind === 'ht') {
-    unit = findUnit(a.ams, target.id);
-    t = findTray(unit, 0);
-    return {slot: 'HT' + (target.id - 127), type: t ? (t.tray_type || '') : '', color: t ? color(t.tray_color) : null};
+    t = match ? htTray(match.raw) : null;
+    return {slot: 'HT' + (match ? match.n : (target.id - 127)), type: t ? (t.tray_type || '') : '', color: t ? color(t.tray_color) : null};
   }
-  unit = findUnit(a.ams, target.id);
-  t = findTray(unit, target.slot);
-  return {slot: 'AMS' + (target.id + 1) + '-' + (target.slot + 1), type: t ? (t.tray_type || '') : '', color: t ? color(t.tray_color) : null};
+  t = match ? findTray(match.raw, target.slot) : null;
+  return {slot: 'AMS' + (match ? match.n : (target.id + 1)) + '-' + (target.slot + 1), type: t ? (t.tray_type || '') : '', color: t ? color(t.tray_color) : null};
 }
 
 function fanPct(v) {
@@ -116,27 +144,17 @@ function unitTrays(unit, count) {
 }
 
 function units(p) {
-  var a = p.ams || {}, list = a.ams || [], regular = [], ht = [], i, u, id;
+  var a = p.ams || {}, list = buildUnitList(p), i, e, out = [];
   var feed = feedTarget(String(a.tray_now === undefined ? '255' : a.tray_now));
-  for (i = 0; i < list.length; i++) {
-    u = list[i];
-    id = num(u.id);
-    if (id === null) continue;
-    if (id >= 0 && id <= 3) regular.push(u);
-    else if (id >= 128 && id <= 135) ht.push(u);
-  }
-  regular.sort(function (x, y) { return num(x.id) - num(y.id); });
-  ht.sort(function (x, y) { return num(x.id) - num(y.id); });
-  var out = [], rid;
-  for (i = 0; i < regular.length && out.length < 12; i++) {
-    rid = num(regular[i].id);
-    out.push({kind: 'ams', n: rid + 1, trays: unitTrays(regular[i], 4),
-              active: (feed && feed.kind === 'ams' && feed.id === rid) ? feed.slot : null});
-  }
-  for (i = 0; i < ht.length && out.length < 12; i++) {
-    rid = num(ht[i].id);
-    out.push({kind: 'ht', n: rid - 127, trays: unitTrays(ht[i], 1),
-              active: (feed && feed.kind === 'ht' && feed.id === rid) ? 0 : null});
+  for (i = 0; i < list.length && out.length < 12; i++) {
+    e = list[i];
+    if (e.kind === 'ams') {
+      out.push({kind: 'ams', n: e.n, trays: unitTrays(e.raw, 4),
+                active: (feed && feed.kind === 'ams' && feed.id === e.id) ? feed.slot : null});
+    } else {
+      out.push({kind: 'ht', n: e.n, trays: [spool(htTray(e.raw))],
+                active: (feed && feed.kind === 'ht' && feed.id === e.id) ? 0 : null});
+    }
   }
   return out;
 }

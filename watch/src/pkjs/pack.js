@@ -3,11 +3,13 @@ var C = require('./constants.js');
 function int(v, dflt) { return typeof v === 'number' && isFinite(v) ? Math.round(v) : dflt; }
 function str(v, max) { return typeof v === 'string' ? v.slice(0, max) : ''; }
 function hex(c) { return typeof c === 'string' && /^[0-9A-Fa-f]{6}$/.test(c) ? parseInt(c, 16) : -1; }
+function validColor(c) { return typeof c === 'string' && /^[0-9A-F]{6}$/i.test(c) ? c.toUpperCase() : null; }
 
 function traySegment(t) {
   if (!t) return '|';
   var type = str((t.type || '').replace(/[|;,]/g, ''), 7);
-  return t.color ? '|' + type + ',' + t.color : '|' + type + ',';
+  var col = validColor(t.color);
+  return col ? '|' + type + ',' + col : '|' + type + ',';
 }
 
 function unitSegment(u) {

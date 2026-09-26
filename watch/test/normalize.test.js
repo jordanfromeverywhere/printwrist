@@ -130,6 +130,56 @@ test('ams(): HT label "HT1"', function () {
   assert.strictEqual(N.normalize(report({gcode_state: 'RUNNING', ams: viaGlobal})).ams.slot, 'HT1');
 });
 
+test('numeric tray_now (not just string) is handled', function () {
+  var ams = {tray_now: 2, ams: [{id: '0', tray: [{id: '2', tray_type: 'PLA', tray_color: 'FF0000FF'}]}]};
+  assert.strictEqual(N.normalize(report({gcode_state: 'RUNNING', ams: ams})).units[0].active, 2);
+  var htAms = {tray_now: 129, ams: [{id: '129', tray: [{id: '0', tray_type: 'PA', tray_color: '202020FF'}]}]};
+  var out = N.normalize(report({gcode_state: 'RUNNING', ams: htAms}));
+  assert.strictEqual(out.units[0].active, 0);
+  assert.strictEqual(out.ams.slot, 'HT1');
+});
+
+test('unit ids outside 0-3 / 128-135 are ignored', function () {
+  var ams = {ams: [{id: '4', tray: []}, {id: '127', tray: []}, {id: '136', tray: []}, {id: '-1', tray: []},
+                    {id: '0', tray: [{id: '0', tray_type: 'PLA', tray_color: 'FF0000FF'}]}]};
+  var out = N.normalize(report({gcode_state: 'IDLE', ams: ams}));
+  assert.strictEqual(out.units.length, 1);
+  assert.strictEqual(out.units[0].kind, 'ams');
+});
+
+test('numbering is 1-based position within kind, not raw id (controller ruling)', function () {
+  var ams = {ams: [{id: '0', tray: []}, {id: '2', tray: []}]};
+  var out = N.normalize(report({gcode_state: 'IDLE', ams: ams}));
+  assert.deepStrictEqual(out.units.map(function (u) { return u.n; }), [1, 2]);
+
+  var lonelyHt = {tray_now: '129', ams: [{id: '129', tray: [{id: '0', tray_type: 'PA', tray_color: '202020FF'}]}]};
+  var htOut = N.normalize(report({gcode_state: 'RUNNING', ams: lonelyHt}));
+  assert.strictEqual(htOut.units[0].n, 1);
+  assert.strictEqual(htOut.ams.slot, 'HT1');
+});
+
+test('HT units in the raw array before regular units still sort after them', function () {
+  var ams = {ams: [{id: '128', tray: []}, {id: '0', tray: []}]};
+  var out = N.normalize(report({gcode_state: 'IDLE', ams: ams}));
+  assert.deepStrictEqual(out.units.map(function (u) { return u.kind; }), ['ams', 'ht']);
+});
+
+test('13+ reported units are capped at 12', function () {
+  var list = [], i;
+  for (i = 0; i < 4; i++) list.push({id: String(i), tray: []});
+  for (i = 128; i < 136; i++) list.push({id: String(i), tray: []});
+  list.push({id: '0', tray: []}); // 13th entry, a duplicate id
+  var out = N.normalize(report({gcode_state: 'IDLE', ams: {ams: list}}));
+  assert.strictEqual(out.units.length, 12);
+});
+
+test('HT tray fallback: no tray with id 0 falls back to tray[0]', function () {
+  var ams = {tray_now: '128', ams: [{id: '128', tray: [{id: '3', tray_type: 'PA', tray_color: '202020FF'}]}]};
+  var out = N.normalize(report({gcode_state: 'RUNNING', ams: ams}));
+  assert.deepStrictEqual(out.units[0].trays, [{type: 'PA', color: '202020'}]);
+  assert.deepStrictEqual(out.ams, {slot: 'HT1', type: 'PA', color: '202020'});
+});
+
 test('recorded P2S details', function () {
   var out = N.normalize(JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'report_p2s.json'), 'utf8')));
   assert.strictEqual(out.speed, 2);
