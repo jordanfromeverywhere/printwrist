@@ -4,6 +4,23 @@ function int(v, dflt) { return typeof v === 'number' && isFinite(v) ? Math.round
 function str(v, max) { return typeof v === 'string' ? v.slice(0, max) : ''; }
 function hex(c) { return typeof c === 'string' && /^[0-9A-Fa-f]{6}$/.test(c) ? parseInt(c, 16) : -1; }
 
+function traySegment(t) {
+  if (!t) return '|';
+  var type = str((t.type || '').replace(/[|;,]/g, ''), 7);
+  return t.color ? '|' + type + ',' + t.color : '|' + type + ',';
+}
+
+function unitSegment(u) {
+  var trays = Array.isArray(u.trays) ? u.trays : [];
+  var seg = (u.kind === 'ht' ? 'H' : 'A') + (u.active === null || u.active === undefined ? '-' : String(u.active));
+  for (var i = 0; i < trays.length; i++) seg += traySegment(trays[i]);
+  return seg;
+}
+
+function amsUnits(units) {
+  return Array.isArray(units) ? units.map(unitSegment).join(';') : '';
+}
+
 function statusToMessage(s) {
   s = s || {};
   var ams = s.ams || null;
@@ -21,7 +38,6 @@ function statusToMessage(s) {
     AMS_COLOR: ams && /^[0-9A-Fa-f]{6}$/.test(ams.color || '') ? parseInt(ams.color, 16) : -1,
     ERROR_CODE: str(s.error_code, 11)
   };
-  var trays = Array.isArray(s.trays) ? s.trays : [], i, t;
   m.NOZZLE_TARGET = int(s.nozzle_target, C.TEMP_NONE);
   m.BED_TARGET = int(s.bed_target, C.TEMP_NONE);
   m.FAN_PART = int(s.fan_part, -1);
@@ -29,12 +45,8 @@ function statusToMessage(s) {
   m.FAN_CHAMBER = int(s.fan_chamber, -1);
   m.SPEED_LEVEL = int(s.speed, 0);
   m.LIGHT = s.light === 'on' ? 1 : (s.light === 'off' ? 0 : -1);
-  m.TRAY_ACTIVE = int(s.tray_active, -1);
-  for (i = 0; i < 4; i++) {
-    t = trays[i] || null;
-    m['TRAY' + i + '_TYPE'] = t ? str(t.type, 7) : '';
-    m['TRAY' + i + '_COLOR'] = t ? hex(t.color) : -1;
-  }
+  m.AMS_UNITS = amsUnits(s.units);
+  m.EXT_ACTIVE = s.ext_active ? 1 : 0;
   m.EXT_TYPE = s.ext ? str(s.ext.type, 7) : '';
   m.EXT_COLOR = s.ext ? hex(s.ext.color) : -1;
   return m;

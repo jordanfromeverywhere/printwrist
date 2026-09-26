@@ -41,26 +41,46 @@ function external(p) {
   return {};
 }
 
+// Maps ams.tray_now to what's feeding: a regular AMS unit + slot, an HT unit, the external
+// spool, or none. Shared by ams() (the one-line label) and units() (the per-unit active slot).
+function feedTarget(now) {
+  if (now === '254') return {kind: 'ext'};
+  var n = num(now);
+  if (n === null) return null;
+  if (n >= 0 && n <= 15) return {kind: 'ams', id: Math.floor(n / 4), slot: n % 4};
+  if (n >= 128 && n <= 135) return {kind: 'ht', id: n};
+  if (n >= 16 && n <= 23) return {kind: 'ht', id: 128 + (n - 16)};
+  return null;
+}
+
+function findUnit(units, id) {
+  var i;
+  for (i = 0; i < (units || []).length; i++) { if (num(units[i].id) === id) return units[i]; }
+  return null;
+}
+
+function findTray(unit, slot) {
+  var arr = (unit && unit.tray) || [], i;
+  for (i = 0; i < arr.length; i++) { if (num(arr[i].id) === slot) return arr[i]; }
+  return null;
+}
+
 function ams(p) {
-  var a = p.ams || {}, now = String(a.tray_now === undefined ? '255' : a.tray_now), idx, unit, slot, i, j, u, t, tray;
-  if (now === '255') return null;
-  if (now === '254') {
+  var a = p.ams || {}, now = String(a.tray_now === undefined ? '255' : a.tray_now);
+  var target = feedTarget(now), tray, unit, t;
+  if (!target) return null;
+  if (target.kind === 'ext') {
     tray = external(p);
     return {slot: 'Ext', type: tray.tray_type || '', color: color(tray.tray_color)};
   }
-  idx = num(now);
-  if (idx === null) return null;
-  unit = Math.floor(idx / 4);
-  slot = idx % 4;
-  for (i = 0; i < (a.ams || []).length; i++) {
-    u = a.ams[i];
-    if (num(u.id) !== unit) continue;
-    for (j = 0; j < (u.tray || []).length; j++) {
-      t = u.tray[j];
-      if (num(t.id) === slot) return {slot: 'AMS' + (unit + 1) + '-' + (slot + 1), type: t.tray_type || '', color: color(t.tray_color)};
-    }
+  if (target.kind === 'ht') {
+    unit = findUnit(a.ams, target.id);
+    t = findTray(unit, 0);
+    return {slot: 'HT' + (target.id - 127), type: t ? (t.tray_type || '') : '', color: t ? color(t.tray_color) : null};
   }
-  return {slot: 'AMS' + (unit + 1) + '-' + (slot + 1), type: '', color: null};
+  unit = findUnit(a.ams, target.id);
+  t = findTray(unit, target.slot);
+  return {slot: 'AMS' + (target.id + 1) + '-' + (target.slot + 1), type: t ? (t.tray_type || '') : '', color: t ? color(t.tray_color) : null};
 }
 
 function fanPct(v) {
@@ -85,31 +105,51 @@ function spool(t) {
   return {type: t.tray_type, color: color(t.tray_color)};
 }
 
-function trays(p) {
-  var out = [null, null, null, null], a = p.ams || {}, units = a.ams || [], i, j, u;
-  for (i = 0; i < units.length; i++) {
-    u = units[i];
-    if (num(u.id) !== 0) continue;
-    for (j = 0; j < (u.tray || []).length; j++) {
-      var id = num(u.tray[j].id);
-      if (id !== null && id >= 0 && id < 4) out[id] = spool(u.tray[j]);
-    }
+function unitTrays(unit, count) {
+  var out = [], arr = (unit && unit.tray) || [], i, id;
+  for (i = 0; i < count; i++) out.push(null);
+  for (i = 0; i < arr.length; i++) {
+    id = num(arr[i].id);
+    if (id !== null && id >= 0 && id < count) out[id] = spool(arr[i]);
   }
   return out;
 }
 
-function trayActive(p) {
-  var now = String(((p.ams || {}).tray_now === undefined) ? '255' : p.ams.tray_now);
-  if (now === '254') return 4;
-  var n = num(now);
-  return n !== null && n >= 0 && n < 4 ? n : null;
+function units(p) {
+  var a = p.ams || {}, list = a.ams || [], regular = [], ht = [], i, u, id;
+  var feed = feedTarget(String(a.tray_now === undefined ? '255' : a.tray_now));
+  for (i = 0; i < list.length; i++) {
+    u = list[i];
+    id = num(u.id);
+    if (id === null) continue;
+    if (id >= 0 && id <= 3) regular.push(u);
+    else if (id >= 128 && id <= 135) ht.push(u);
+  }
+  regular.sort(function (x, y) { return num(x.id) - num(y.id); });
+  ht.sort(function (x, y) { return num(x.id) - num(y.id); });
+  var out = [], rid;
+  for (i = 0; i < regular.length && out.length < 12; i++) {
+    rid = num(regular[i].id);
+    out.push({kind: 'ams', n: rid + 1, trays: unitTrays(regular[i], 4),
+              active: (feed && feed.kind === 'ams' && feed.id === rid) ? feed.slot : null});
+  }
+  for (i = 0; i < ht.length && out.length < 12; i++) {
+    rid = num(ht[i].id);
+    out.push({kind: 'ht', n: rid - 127, trays: unitTrays(ht[i], 1),
+              active: (feed && feed.kind === 'ht' && feed.id === rid) ? 0 : null});
+  }
+  return out;
+}
+
+function extActive(p) {
+  return String(((p.ams || {}).tray_now === undefined) ? '255' : p.ams.tray_now) === '254';
 }
 
 function empty() {
   return {stage: 'offline', progress: null, remaining_min: null, nozzle: null, bed: null, chamber: null,
           layer: null, total_layers: null, job: null, error_code: null, ams: null,
           nozzle_target: null, bed_target: null, fan_part: null, fan_aux: null, fan_chamber: null,
-          speed: null, light: null, trays: [null, null, null, null], tray_active: null, ext: null};
+          speed: null, light: null, units: [], ext_active: false, ext: null};
 }
 
 function normalize(report) {
@@ -134,8 +174,8 @@ function normalize(report) {
     fan_chamber: fanPct(p.big_fan2_speed),
     speed: speed(p.spd_lvl),
     light: light(p),
-    trays: trays(p),
-    tray_active: trayActive(p),
+    units: units(p),
+    ext_active: extActive(p),
     ext: spool(external(p))
   };
 }
