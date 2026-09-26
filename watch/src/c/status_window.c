@@ -13,6 +13,11 @@ static int s_page;
 static char s_pending_toast[40];
 static bool s_has_pending_toast;
 
+static int page_count(void) {
+  int units = g_state.unit_count > 0 ? g_state.unit_count : 1;
+  return 2 + units;
+}
+
 static const char *conn_banner(ConnState c) {
   switch (c) {
     case CONN_CONNECTING: return "Connecting...";
@@ -28,10 +33,11 @@ static const char *conn_banner(ConnState c) {
 static void draw_dots(GContext *ctx, GRect b) {
   int dot_x = b.origin.x + b.size.w - 8;
   int cy = b.origin.y + b.size.h / 2;
-  int centers[3] = {cy - 10, cy, cy + 10};
-  for (int i = 0; i < 3; i++) {
+  int n = page_count();
+  int top = cy - (n - 1) * 5;
+  for (int i = 0; i < n; i++) {
     graphics_context_set_fill_color(ctx, i == s_page ? GColorWhite : GColorDarkGray);
-    graphics_fill_rect(ctx, GRect(dot_x, centers[i] - 2, 5, 5), 3, GCornersAll);
+    graphics_fill_rect(ctx, GRect(dot_x, top + i * 10 - 2, 5, 5), 3, GCornersAll);
   }
 }
 
@@ -40,14 +46,13 @@ static void draw(Layer *layer, GContext *ctx) {
   graphics_context_set_fill_color(ctx, GColorBlack);
   graphics_fill_rect(ctx, b, 0, GCornerNone);
   if (!g_state.has_status && g_state.conn != CONN_OK) { ui_draw_conn(ctx, b, g_state.conn); return; }
+  if (s_page >= page_count()) s_page = page_count() - 1;
   switch (s_page) {
     case 1:
       layout_details_draw(ctx, b, &g_state);
       break;
-    case 2:
-      layout_filament_draw(ctx, b, &g_state);
-      break;
     default:
+      if (s_page >= 2) { layout_filament_draw(ctx, b, &g_state, s_page - 2); break; }
       switch (g_state.layout) {
         case LAYOUT_BIG:
           layout_big_draw(ctx, b, &g_state);
@@ -103,7 +108,8 @@ static void select_click(ClickRecognizerRef r, void *ctx) {
 
 static void page_click(int delta) {
   if (!g_state.has_status && g_state.conn != CONN_OK) return;
-  s_page = (s_page + delta + 3) % 3;
+  int n = page_count();
+  s_page = (s_page + delta + n) % n;
   if (s_canvas) layer_mark_dirty(s_canvas);
 }
 
