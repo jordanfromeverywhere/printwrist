@@ -58,29 +58,36 @@ static void parse_tray(const char *seg, int len, char *type_out, size_t type_out
 /* Parses AMS_UNITS ("A3|PLA,FF0000|...|...;H-|PA,202020" style). Bad kind chars are skipped
    (that unit is dropped, parsing continues after its ';'); trays beyond 4 and units beyond
    MAX_UNITS are ignored; malformed hex becomes -1. Builds into a scratch array first so a
-   truncated or malformed message never leaves g_state half-updated. */
-static void parse_ams_units(const char *str) {
-  AmsUnit tmp[MAX_UNITS];
-  int count = 0;
-  const char *p = str;
+   truncated or malformed message never leaves g_state half-updated. `len` is the tuple's
+   declared byte length; parsing never reads at or past str[len], regardless of whether a NUL
+   shows up first. */
+static void parse_ams_units(const char *str, int len) {
+  static AmsUnit tmp[MAX_UNITS];
+  int count = 0, total = 0;
+  const char *end, *p;
   memset(tmp, 0, sizeof tmp);
 
-  while (*p && count < MAX_UNITS) {
-    const char *seg_end = strchr(p, ';');
-    int seg_len = seg_end ? (int)(seg_end - p) : (int)strlen(p);
+  while (total < len && str[total] != '\0') total++;
+  end = str + total;
+  p = str;
+
+  while (p < end && count < MAX_UNITS) {
+    const char *seg_end = p;
+    int seg_len;
+    while (seg_end < end && *seg_end != ';') seg_end++;
+    seg_len = (int)(seg_end - p);
     if (seg_len >= 2 && (p[0] == 'A' || p[0] == 'H')) {
       AmsUnit *u = &tmp[count];
       const char *tp = p + 2;
-      const char *seg_stop = p + seg_len;
       int tray_idx = 0, i;
       u->kind = p[0];
       u->active = (p[1] >= '0' && p[1] <= '3') ? (int8_t)(p[1] - '0') : -1;
       for (i = 0; i < 4; i++) { u->type[i][0] = '\0'; u->color[i] = -1; }
-      while (tp < seg_stop && *tp == '|') {
+      while (tp < seg_end && *tp == '|') {
         const char *next_pipe;
         tp++;
         next_pipe = tp;
-        while (next_pipe < seg_stop && *next_pipe != '|') next_pipe++;
+        while (next_pipe < seg_end && *next_pipe != '|') next_pipe++;
         if (tray_idx < 4) {
           parse_tray(tp, (int)(next_pipe - tp), u->type[tray_idx], sizeof u->type[tray_idx], &u->color[tray_idx]);
           tray_idx++;
@@ -90,7 +97,7 @@ static void parse_ams_units(const char *str) {
       u->n_trays = (uint8_t)tray_idx;
       count++;
     }
-    if (!seg_end) break;
+    if (seg_end >= end) break;
     p = seg_end + 1;
   }
 
@@ -127,7 +134,7 @@ static void inbox(DictionaryIterator *it, void *ctx) {
   read_int(it, MESSAGE_KEY_LIGHT, &g_state.light);
 
   Tuple *au = dict_find(it, MESSAGE_KEY_AMS_UNITS);
-  if (au) parse_ams_units(au->value->cstring);
+  if (au && au->type == TUPLE_CSTRING && au->length > 0) parse_ams_units(au->value->cstring, au->length);
   read_int(it, MESSAGE_KEY_EXT_ACTIVE, &g_state.ext_active);
   read_str(it, MESSAGE_KEY_EXT_TYPE, g_state.ext_type, sizeof g_state.ext_type);
   Tuple *ec = dict_find(it, MESSAGE_KEY_EXT_COLOR);
@@ -161,7 +168,7 @@ void messaging_init(StateChangedFn on_state, AlertFn on_alert, ControlResultFn o
   s_on_control = on_control;
   app_message_register_inbox_received(inbox);
   app_message_register_outbox_failed(outbox_failed);
-  app_message_open(1024, 128);
+  app_message_open(2048, 128);
 }
 
 bool messaging_send_control(int action) {

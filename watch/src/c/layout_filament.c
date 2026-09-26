@@ -107,6 +107,9 @@ void layout_filament_draw(GContext *ctx, GRect b, const PrintState *s, int unit)
     return;
   }
 
+  if (unit >= s->unit_count) unit = s->unit_count - 1;
+  if (unit < 0) unit = 0;
+
   const AmsUnit *u = &s->units[unit];
   int n = 1, i, ext_y;
   for (i = 0; i < unit; i++) { if (s->units[i].kind == u->kind) n++; }
